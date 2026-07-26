@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 💬 Questions & discussion
+    url: https://github.com/Curry-Leaves/curry-leaves-assistant/discussions
+    about: Ask a question, share an idea, or discuss usage — not a bug or a concrete feature request.
+  - name: 📖 User guide & docs
+    url: https://ilayanambi.com/curryleaves
+    about: How to use every screen, an FAQ, and setup help — check here before filing a bug.
+  - name: 🔒 Report a security vulnerability
+    url: https://github.com/Curry-Leaves/curry-leaves-assistant/security/advisories/new
+    about: Please report vulnerabilities privately — do NOT open a public issue. See SECURITY.md.

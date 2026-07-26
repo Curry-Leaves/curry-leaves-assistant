@@ -1,0 +1,12 @@
+# curry-leaves backend — thin. curry-leaves is installed editable from a sibling checkout.
+fastapi>=0.115
+uvicorn[standard]>=0.30
+pydantic>=2.7
+pyyaml>=6.0
+mlx-whisper>=0.4   # Apple-Silicon Whisper (arm64 macOS only)
+faster-whisper>=1.0   # CTranslate2 CPU Whisper backend (cross-platform fallback)
+markitdown[pdf,docx,pptx,xlsx,xls,outlook]>=0.1  # chat attachments → markdown (pdf + Office + html/epub/images)
+trafilatura>=2.0   # web_fetch: readability extraction (main article, nav/ads stripped)
+playwright>=1.50   # JS rendering for web_fetch(render=True) + the `browser` tool — needs `playwright install chromium`
+mcp>=1.9   # MCP client (curry_leaves.mcp) — connect to user-added external MCP servers
+# curry-leaves: pip install -e "../curry-leaves-py" (sibling checkout)

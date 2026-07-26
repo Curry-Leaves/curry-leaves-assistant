@@ -1,0 +1,149 @@
+[project]
+name = "curry-leaves-assistant"
+version = "1.1.0"
+description = "Curry Leaves Assistant — voice & meeting assistant with an event-driven agent pool. FastAPI backend + bundled web UI, one `pip install`, one command to run."
+readme = "README.md"
+license = "LicenseRef-MIT-Commons-Clause"
+license-files = ["LICENSE"]
+authors = [{ name = "Ilayanambi Ponramu" }]
+# Upper bound is set by `kokoro` (TTS), which publishes no wheels for 3.13+.
+requires-python = ">=3.11,<3.13"
+keywords = ["voice-assistant", "meeting-assistant", "agent", "transcription", "whisper", "fastapi"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: End Users/Desktop",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Multimedia :: Sound/Audio :: Speech",
+]
+dependencies = [
+  "curry-leaves>=0.0.1",
+  # The knowledge/memory engine (import `cl_memory`), from PyPI. Renamed from
+  # curry-leaves-okf / `cl_okf`; the import change is breaking, so pin the new name.
+  "curry-leaves-memory>=1.0,<2",
+  "curry-leaves-presenter>=1.0",
+  "fastapi>=0.115",
+  "uvicorn[standard]>=0.30",
+  "pydantic>=2.7",
+  "pyyaml>=6.0",
+  # Cron-expression parsing for the unified scheduler (orchestration/schedule.py) —
+  # computes the next fire time for `cron`-kind schedules; pure-Python, no native deps.
+  "croniter>=2.0",
+  "faster-whisper>=1.0",
+  # Kokoro-82M text-to-speech (Apache-2.0) powers the chat Voice button. Pulls in torch;
+  # its phonemizer needs the system `espeak-ng` binary (in the Dockerfile; `brew install
+  # espeak-ng` on macOS). soundfile is used for WAV I/O in TTS tooling/tests.
+  "kokoro>=0.9.4",
+  "soundfile>=0.12",
+  "markitdown[pdf,docx,pptx,xlsx,xls,outlook]>=0.1",
+  "trafilatura>=2.0",
+  "playwright>=1.50",
+  "mcp>=1.9",
+  # Apple-Silicon-accelerated Whisper backend — only installable there; every other
+  # platform (Linux, Windows, Intel Mac) runs on faster-whisper above instead.
+  "mlx-whisper>=0.4; sys_platform == 'darwin' and platform_machine == 'arm64'",
+]
+
+[project.optional-dependencies]
+dev = [
+  "mypy>=1.10",
+  "pytest>=8.2",
+  "pytest-asyncio>=0.23",
+  "build>=1.2",
+  "twine>=5.0",
+  "import-linter>=2.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/Curry-Leaves/curry-leaves-assistant"
+Repository = "https://github.com/Curry-Leaves/curry-leaves-assistant"
+Issues = "https://github.com/Curry-Leaves/curry-leaves-assistant/issues"
+
+[project.scripts]
+curry-leaves-assistant = "curry_leaves_assistant.app:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/curry_leaves_assistant"]
+# The web UI is built separately (`npm run build`, or scripts/build_webui.sh) into
+# src/curry_leaves_assistant/webui/ BEFORE `python -m build` runs. It's gitignored
+# (generated output), so it needs an explicit `artifacts` force-include — hatchling
+# otherwise limits packaging to VCS-tracked files. Empty/missing dir → app.py falls
+# back to a repo-relative dist/ (dev mode), so this is optional, not required.
+artifacts = ["src/curry_leaves_assistant/webui/**"]
+exclude = [
+  "**/.env",
+  "**/.env.*",
+  "**/.gitignore",
+  "**/pyrightconfig.json",
+]
+
+[tool.hatch.build.targets.sdist]
+include = [
+  "src/curry_leaves_assistant",
+  "LICENSE",
+  "README.md",
+]
+artifacts = ["src/curry_leaves_assistant/webui/**"]
+exclude = [
+  "**/.env",
+  "**/.env.*",
+  "**/.gitignore",
+  "**/pyrightconfig.json",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+
+# ─── Layer boundaries (enforced by `lint-imports`) ────────────────────────────
+# Higher layers may import lower ones, never the reverse. This keeps the seams the
+# re-layering established from silently rotting back into cycles. `app` is the
+# composition root and is intentionally excluded (it wires everything together).
+[tool.importlinter]
+root_package = "curry_leaves_assistant"
+
+[[tool.importlinter.contracts]]
+name = "Layered architecture"
+type = "layers"
+layers = [
+  "curry_leaves_assistant.api",
+  "curry_leaves_assistant.orchestration",
+  "curry_leaves_assistant.agents",
+  "curry_leaves_assistant.providers",
+  "curry_leaves_assistant.domain",
+  "curry_leaves_assistant.stores",
+  "curry_leaves_assistant.core",
+]
+# app.py composes all layers; not part of the ordering.
+exhaustive = false
+# Deliberate, reviewed exceptions — each is a lazy (function-local) import that exists
+# only to break an initialization cycle; none runs at module-import time. Kept explicit
+# here (rather than hidden) so they stay visible and can't multiply silently.
+ignore_imports = [
+  # app.py is the composition root — it wires every layer together.
+  "curry_leaves_assistant.app -> **",
+  # doc_text (core) optionally transcribes audio attachments; transcribe lives in domain.
+  # doc_text can't move to domain (stores/chat_sessions imports it), so this one edge is allowed.
+  "curry_leaves_assistant.core.doc_text -> curry_leaves_assistant.domain.transcribe",
+  # trace_ctx (core) persists spans via trace_store; splitting the writer out of core
+  # would fragment the tracing model. Allowed as the single core→stores edge.
+  "curry_leaves_assistant.core.trace_ctx -> curry_leaves_assistant.stores.trace_store",
+  # A dashboard tool kicks off the first tile refresh; run_tile lives in orchestration.
+  # Lazy import avoids the dashboard_runner→agent_engine→agent_tools→(this) init cycle.
+  "curry_leaves_assistant.agents.dashboard_tools -> curry_leaves_assistant.orchestration.dashboard_runner",
+  # Orchestration tools (assign_task / spawn_agent / await_results) submit into the Work
+  # Kernel — agent-facing tools that hand work to orchestration. Lazy imports; same shape as
+  # the dashboard-tool edge above.
+  "curry_leaves_assistant.agents.orchestration_tools -> curry_leaves_assistant.orchestration.work",
+  "curry_leaves_assistant.agents.orchestration_tools -> curry_leaves_assistant.orchestration.scheduler",
+  # The assign tool (the Lead routes a posted pool task to the best-fit agent) submits the
+  # chosen job into the Work Kernel — same agent-facing-tool→orchestration shape as above.
+  # Both imports are lazy (function-local), so nothing runs at module-import time.
+  "curry_leaves_assistant.agents.assign_tools -> curry_leaves_assistant.orchestration.work",
+  "curry_leaves_assistant.agents.assign_tools -> curry_leaves_assistant.orchestration.dispatch",
+]

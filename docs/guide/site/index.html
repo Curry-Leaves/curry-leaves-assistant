@@ -1,0 +1,1281 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Curry Leaves — User Guide</title>
+<meta name="description" content="Curry Leaves user guide: a private, local-first voice &amp; meeting assistant. Transcription, speech and search all run on your machine, with a team of AI assistants you hire and schedule, and a memory that gets to know you.">
+<link rel="icon" type="image/png" href="assets/logo.png">
+<style>
+  :root {
+    --bg: #F7F4EE; --card: #FCFAF5; --ink: #262119; --ink2: #5C5546; --ink3: #8A8172;
+    --hair: #E3DCCC; --hair-soft: #EDE7D9;
+    --leaf: #2F6B40; --leaf-ink: #24512F; --leaf-soft: #E3EDE1; --leaf-faint: #F0F4EC;
+    --spice: #A8690F; --spice-soft: #F4E8D4;
+    --code-bg: #EFEAE0;
+    --bar-bg: rgba(247,244,238,.82);
+    --shadow: 0 1px 2px rgba(0,0,0,.04), 0 8px 24px -14px rgba(0,0,0,.22);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #171511; --card: #201D17; --ink: #EBE4D5; --ink2: #ABA28E; --ink3: #7C7462;
+      --hair: #353026; --hair-soft: #2A261E;
+      --leaf: #8CC79A; --leaf-ink: #A6D6B1; --leaf-soft: #24352A; --leaf-faint: #1E2A22;
+      --spice: #D79A45; --spice-soft: #3A2E1B;
+      --code-bg: #26221B;
+      --bar-bg: rgba(23,21,17,.82);
+      --shadow: 0 1px 2px rgba(0,0,0,.2), 0 10px 30px -16px rgba(0,0,0,.6);
+    }
+  }
+  :root[data-theme="light"] {
+    --bg: #F7F4EE; --card: #FCFAF5; --ink: #262119; --ink2: #5C5546; --ink3: #8A8172;
+    --hair: #E3DCCC; --hair-soft: #EDE7D9;
+    --leaf: #2F6B40; --leaf-ink: #24512F; --leaf-soft: #E3EDE1; --leaf-faint: #F0F4EC;
+    --spice: #A8690F; --spice-soft: #F4E8D4;
+    --code-bg: #EFEAE0;
+    --bar-bg: rgba(247,244,238,.82);
+    --shadow: 0 1px 2px rgba(0,0,0,.04), 0 8px 24px -14px rgba(0,0,0,.22);
+  }
+  :root[data-theme="dark"] {
+    --bg: #171511; --card: #201D17; --ink: #EBE4D5; --ink2: #ABA28E; --ink3: #7C7462;
+    --hair: #353026; --hair-soft: #2A261E;
+    --leaf: #8CC79A; --leaf-ink: #A6D6B1; --leaf-soft: #24352A; --leaf-faint: #1E2A22;
+    --spice: #D79A45; --spice-soft: #3A2E1B;
+    --code-bg: #26221B;
+    --bar-bg: rgba(23,21,17,.82);
+    --shadow: 0 1px 2px rgba(0,0,0,.2), 0 10px 30px -16px rgba(0,0,0,.6);
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 16px/1.65 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  ::selection { background: var(--leaf-soft); color: var(--leaf-ink); }
+
+  /* ── Top bar ─────────────────────────────────────────── */
+  .topbar {
+    position: sticky; top: 0; z-index: 20;
+    height: 56px;
+    background: var(--bar-bg);
+    -webkit-backdrop-filter: saturate(1.4) blur(12px);
+    backdrop-filter: saturate(1.4) blur(12px);
+    border-bottom: 1px solid var(--hair);
+  }
+  /* Inner content is centered on the same grid as the body shell:
+     brand aligns over the left nav, links align over the content column. */
+  .topbar-inner {
+    display: grid; grid-template-columns: 260px minmax(0, 1fr) 240px;
+    align-items: center; height: 100%;
+    max-width: 1680px; margin: 0 auto;
+  }
+  .topbar-inner .lead { display: flex; align-items: center; gap: 10px; padding: 0 16px 0 24px; min-width: 0; }
+  .topbar-inner .trail { display: flex; align-items: center; gap: 8px; justify-content: flex-end; padding: 0 24px; grid-column: 2 / 4; }
+  .topbar .brand { display: flex; align-items: center; gap: 8px; text-decoration: none; flex-wrap: nowrap; white-space: nowrap; }
+  .topbar .brand img.logo {
+    flex: none; width: 26px; height: 26px; border-radius: 6px; display: block;
+    box-shadow: 0 1px 2px rgba(0,0,0,.12);
+  }
+  .topbar .brand .name { font-weight: 700; font-size: 15.5px; letter-spacing: -0.01em; color: var(--ink); }
+  .topbar .brand .tag {
+    flex: none;
+    font-size: 10.5px; font-weight: 650; letter-spacing: 0.06em; text-transform: uppercase;
+    color: var(--leaf-ink); background: var(--leaf-faint); border: 1px solid var(--leaf-soft);
+    padding: 2px 8px; border-radius: 999px;
+  }
+  /* Version dropdown */
+  .verpick { position: relative; flex: none; }
+  .verbtn {
+    display: inline-flex; align-items: center; gap: 4px; cursor: pointer;
+    font: 11px/1.5 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    color: var(--ink3); background: var(--hair-soft); border: 1px solid var(--hair);
+    padding: 2px 7px; border-radius: 7px; font-family: inherit;
+  }
+  .verbtn:hover { color: var(--ink); border-color: var(--ink3); }
+  .verbtn svg { transition: transform .15s; }
+  .verpick.open .verbtn svg { transform: rotate(180deg); }
+  @media (prefers-reduced-motion: reduce) { .verbtn svg { transition: none; } }
+  .vermenu {
+    display: none; position: absolute; top: calc(100% + 8px); left: 0; z-index: 30;
+    min-width: 190px; padding: 6px; border-radius: 10px;
+    background: var(--card); border: 1px solid var(--hair); box-shadow: var(--shadow);
+  }
+  .verpick.open .vermenu { display: block; }
+  .vermenu .verhead {
+    font-size: 12px; color: var(--ink3); padding: 6px 10px 8px; margin-bottom: 4px;
+    border-bottom: 1px solid var(--hair);
+  }
+  .vermenu .verhead strong { color: var(--ink); font-weight: 680; }
+  .vermenu a {
+    display: block; padding: 7px 10px; border-radius: 7px; font-size: 13px;
+    color: var(--ink2); text-decoration: none;
+  }
+  .vermenu a:hover { color: var(--ink); background: var(--hair-soft); }
+  .topbar .barlink {
+    font-size: 13px; color: var(--ink2); text-decoration: none; padding: 6px 10px; border-radius: 7px;
+  }
+  .topbar .barlink:hover { color: var(--ink); background: var(--hair-soft); }
+  .iconlink {
+    display: inline-flex; align-items: center; justify-content: center; flex: none;
+    width: 32px; height: 32px; border-radius: 8px; color: var(--ink2);
+  }
+  .iconlink:hover { color: var(--ink); background: var(--hair-soft); }
+  .iconlink svg { display: block; }
+  .menu-btn {
+    display: none; border: 1px solid var(--hair); background: var(--card); color: var(--ink2);
+    width: 34px; height: 34px; border-radius: 8px; cursor: pointer; align-items: center; justify-content: center;
+  }
+  .menu-btn svg { display: block; }
+
+  .theme-toggle {
+    display: flex; gap: 2px; background: var(--hair-soft);
+    border-radius: 8px; padding: 2px; width: fit-content;
+  }
+  .theme-toggle button {
+    border: 0; background: transparent; color: var(--ink3); font-size: 11.5px; font-weight: 600;
+    padding: 4px 9px; border-radius: 6px; cursor: pointer; font-family: inherit;
+  }
+  .theme-toggle button.on { background: var(--card); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,.06); }
+
+  a:focus-visible, button:focus-visible { outline: 2px solid var(--leaf); outline-offset: 2px; border-radius: 4px; }
+
+  /* ── Shell: nav | content | toc ──────────────────────── */
+  .shell {
+    display: grid;
+    grid-template-columns: 260px minmax(0, 1fr) 240px;
+    gap: 0;
+    max-width: 1680px; margin: 0 auto;
+  }
+
+  /* ── Left sidebar ────────────────────────────────────── */
+  nav.side {
+    position: sticky; top: 56px; align-self: start; height: calc(100vh - 56px); overflow-y: auto;
+    padding: 24px 18px 48px 24px; border-right: 1px solid var(--hair);
+  }
+  nav.side .group { font-size: 10.5px; font-weight: 650; letter-spacing: 0.09em; text-transform: uppercase; color: var(--ink3); margin: 22px 0 6px 10px; }
+  nav.side .group:first-child { margin-top: 4px; }
+  nav.side a {
+    display: block; padding: 6px 10px; margin: 1px 0; border-radius: 7px;
+    color: var(--ink2); text-decoration: none; font-size: 13.5px; position: relative;
+  }
+  nav.side a:hover { color: var(--ink); background: var(--hair-soft); }
+  nav.side a.on { color: var(--leaf-ink); background: var(--leaf-soft); font-weight: 600; }
+  nav.side a.on::before {
+    content: ""; position: absolute; left: -24px; top: 6px; bottom: 6px; width: 3px;
+    background: var(--leaf); border-radius: 0 3px 3px 0;
+  }
+
+  /* ── Content ─────────────────────────────────────────── */
+  main { padding: 0 clamp(40px, 5vw, 96px) 110px; min-width: 0; }
+  /* Prose stays readable; wide blocks (media, tables, cards, code, flow) span the column. */
+  .measure { max-width: 900px; }
+  .measure > p,
+  .measure > ul,
+  .measure > ol,
+  .measure > h3 { max-width: 760px; }
+
+  /* Lead section: garden scene first, then intro copy — copy spans the same width as the scene. */
+  .home-lead { padding-top: 32px; border-top: 0; }
+  .home-lead .measure { max-width: none; }
+  .home-lead .lede { font-size: 18px; color: var(--ink2); max-width: none; margin: 24px 0 18px; }
+  .home-lead .badges { margin-bottom: 20px; }
+  .badges { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 8px; }
+  .badge {
+    font-size: 12px; font-weight: 600; padding: 4px 11px; border-radius: 999px;
+    background: var(--leaf-faint); color: var(--leaf-ink); border: 1px solid var(--leaf-soft);
+  }
+  .badge.spice { background: var(--spice-soft); color: var(--spice); border-color: transparent; }
+
+  section { padding-top: 40px; margin-top: 36px; border-top: 1px solid var(--hair); scroll-margin-top: 72px; }
+  section:first-of-type { border-top: 0; margin-top: 8px; }
+  .kicker { font-size: 11px; font-weight: 650; letter-spacing: 0.09em; text-transform: uppercase; color: var(--leaf); margin: 0 0 6px; }
+  h2 { font-size: 28px; letter-spacing: -0.018em; line-height: 1.18; margin: 0 0 14px; font-weight: 680; text-wrap: balance; scroll-margin-top: 72px; }
+  h3 { font-size: 18px; margin: 32px 0 8px; font-weight: 650; letter-spacing: -0.008em; scroll-margin-top: 72px; }
+  /* anchor link on hover */
+  h2, h3 { position: relative; }
+  .anchor {
+    position: absolute; left: -22px; top: 50%; transform: translateY(-50%);
+    opacity: 0; text-decoration: none; color: var(--ink3); font-weight: 400;
+    transition: opacity .12s;
+  }
+  h2:hover .anchor, h3:hover .anchor, .anchor:focus-visible { opacity: 1; }
+  @media (prefers-reduced-motion: reduce) { .anchor { transition: none; } }
+  p, li { color: var(--ink2); font-size: 15.5px; }
+  p strong, li strong { color: var(--ink); font-weight: 620; }
+  a.inline { color: var(--leaf-ink); text-decoration: underline; text-decoration-color: var(--leaf-soft); text-underline-offset: 3px; }
+  a.inline:hover { text-decoration-color: var(--leaf); }
+  ul { padding-left: 22px; margin: 10px 0; display: flex; flex-direction: column; gap: 7px; }
+  ol { padding-left: 22px; margin: 10px 0; display: flex; flex-direction: column; gap: 8px; }
+  ul li::marker { color: var(--leaf); }
+  ol li::marker { color: var(--leaf); font-weight: 650; }
+
+  code, kbd {
+    font: 13px/1.5 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    background: var(--code-bg); padding: 1.5px 6px; border-radius: 5px; color: var(--ink);
+  }
+  kbd { border: 1px solid var(--hair); box-shadow: 0 1px 0 var(--hair); }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--hair); border-radius: 10px;
+    padding: 15px 17px; overflow-x: auto; margin: 14px 0;
+  }
+  pre code { background: none; padding: 0; font-size: 13px; }
+
+  .tablewrap { overflow-x: auto; margin: 16px 0; border: 1px solid var(--hair); border-radius: 12px; }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  thead th { background: var(--hair-soft); }
+  th { text-align: left; font-size: 11px; letter-spacing: 0.07em; text-transform: uppercase; color: var(--ink3); font-weight: 650; }
+  th, td { padding: 10px 15px; border-bottom: 1px solid var(--hair); }
+  tr:last-child td { border-bottom: 0; }
+  td { color: var(--ink2); }
+  td:first-child { color: var(--ink); font-weight: 600; white-space: nowrap; }
+  td[data-plain] { color: var(--ink2); font-weight: 400; white-space: normal; min-width: 220px; }
+  tbody tr:hover td { background: var(--hair-soft); }
+
+  /* Media — real screenshots / GIFs from the app */
+  figure.media { margin: 24px 0; }
+  figure.media .frame {
+    border: 1px solid var(--hair); border-radius: 12px; overflow: hidden;
+    background: var(--card); box-shadow: var(--shadow);
+  }
+  figure.media img { display: block; width: 100%; height: auto; }
+  figure.media figcaption {
+    font-size: 12.8px; color: var(--ink3); max-width: 64ch; margin: 10px 2px 0;
+    display: flex; align-items: baseline; gap: 8px;
+  }
+  figure.media figcaption .tag {
+    flex: none; font-size: 9.5px; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase;
+    color: var(--spice); background: var(--spice-soft); padding: 2px 7px; border-radius: 999px; line-height: 1.5;
+  }
+
+  /* Scene banner — the dash_bg_1 garden artwork with key highlights overlaid */
+  .scene {
+    position: relative; overflow: hidden; border: 1px solid var(--hair); border-radius: 16px;
+    margin: 8px 0 4px; box-shadow: var(--shadow); isolation: isolate;
+  }
+  .scene .art {
+    display: block; width: 100%; height: auto; aspect-ratio: 2167 / 725; object-fit: cover;
+    filter: brightness(0.72);
+  }
+  .scene .veil {
+    position: absolute; inset: 0; z-index: 1;
+    background:
+      linear-gradient(105deg, rgba(10,18,10,.86) 0%, rgba(10,18,10,.62) 32%, rgba(10,18,10,.30) 58%, rgba(10,18,10,.16) 100%),
+      linear-gradient(to top, rgba(10,18,10,.46), rgba(10,18,10,0) 45%);
+  }
+  .scene .caption {
+    position: absolute; z-index: 2; left: 0; top: 0; bottom: 0;
+    display: flex; flex-direction: column; justify-content: center; gap: 14px;
+    padding: clamp(20px, 4vw, 44px); max-width: 560px;
+  }
+  .scene .caption .eyebrow {
+    align-self: flex-start; font-size: 11px; font-weight: 650; letter-spacing: 0.11em; text-transform: uppercase;
+    color: #d9ecd6; background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.22);
+    padding: 4px 11px; border-radius: 999px;
+    -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px);
+  }
+  .scene .caption .t {
+    color: #fff; font-size: clamp(20px, 2.5vw, 30px); font-weight: 700; letter-spacing: -0.02em;
+    line-height: 1.14; margin: 0; text-shadow: 0 2px 18px rgba(0,0,0,.5);
+    white-space: nowrap;
+  }
+  /* Let the one-line motto extend past the caption's copy width. */
+  .scene .caption { max-width: none; }
+  .scene .caption .eyebrow, .scene .caption .s, .scene .caption .chips { max-width: 560px; }
+  /* Fall back to wrapping when the viewport can't hold the line. */
+  @media (max-width: 1080px) {
+    .scene .caption .t { white-space: normal; text-wrap: balance; max-width: 560px; }
+  }
+  .scene .caption .s {
+    color: #e9efe6; font-size: clamp(13px, 1.4vw, 15px); line-height: 1.5; margin: 0;
+    text-shadow: 0 1px 10px rgba(0,0,0,.5);
+  }
+  .scene .chips { display: flex; flex-wrap: wrap; gap: 7px; }
+  .scene .chip {
+    font-size: 12px; font-weight: 600; color: #eef4ec; padding: 4px 11px; border-radius: 999px;
+    background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.24);
+    -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px);
+  }
+  @media (max-width: 720px) {
+    /* Stack: artwork on top, highlights on a solid panel below (keeps text readable). */
+    .scene .veil { display: none; }
+    .scene .caption {
+      position: static; max-width: none; padding: 18px 18px 20px;
+      background: #12200f;
+    }
+    .scene .caption .t { font-size: 19px; }
+  }
+
+  .callout {
+    border-left: 3px solid var(--leaf); background: var(--leaf-faint);
+    border-radius: 0 10px 10px 0; padding: 13px 17px; margin: 18px 0; font-size: 14.5px; color: var(--ink2);
+  }
+
+  .flow {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 20px 0 6px;
+    font: 12.5px/1.4 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  .flow .step { background: var(--card); border: 1px solid var(--hair); border-radius: 8px; padding: 7px 11px; color: var(--ink); white-space: nowrap; }
+  .flow .step.hot { border-color: var(--leaf); background: var(--leaf-faint); color: var(--leaf-ink); }
+  .flow .arr { color: var(--ink3); }
+
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 12px; margin: 20px 0 4px; }
+  .card {
+    background: var(--card); border: 1px solid var(--hair); border-radius: 12px; padding: 14px 16px;
+    text-decoration: none; display: block; transition: border-color .12s, transform .12s;
+  }
+  .card:hover { border-color: var(--leaf); transform: translateY(-1px); }
+  @media (prefers-reduced-motion: reduce) { .card { transition: none; } .card:hover { transform: none; } }
+  .card .t { display: block; font-weight: 650; font-size: 14px; color: var(--ink); margin-bottom: 3px; }
+  .card .d { display: block; font-size: 12.8px; color: var(--ink3); line-height: 1.45; }
+
+  details { border: 1px solid var(--hair); border-radius: 10px; background: var(--card); margin: 8px 0; }
+  details[open] { border-color: var(--leaf-soft); }
+  details summary { cursor: pointer; padding: 13px 16px; font-weight: 620; font-size: 14.5px; color: var(--ink); list-style: none; }
+  details summary::-webkit-details-marker { display: none; }
+  details summary::before { content: "›"; display: inline-block; margin-right: 9px; color: var(--leaf); transition: transform .15s; }
+  details[open] summary::before { transform: rotate(90deg); }
+  details .body { padding: 0 16px 14px 34px; font-size: 14.5px; color: var(--ink2); }
+  @media (prefers-reduced-motion: reduce) { details summary::before { transition: none; } }
+
+  footer { margin-top: 80px; padding-top: 24px; border-top: 1px solid var(--hair); font-size: 13px; color: var(--ink3); display: flex; gap: 16px; flex-wrap: wrap; }
+
+  /* ── Right "Key topics" keyword panel ────────────────── */
+  /* Only the section currently in view shows its keywords. */
+  aside.toc {
+    position: sticky; top: 56px; align-self: start; height: calc(100vh - 56px); overflow-y: auto;
+    padding: 30px 22px 48px 18px;
+  }
+  aside.toc .toc-title { font-size: 10.5px; font-weight: 650; letter-spacing: 0.09em; text-transform: uppercase; color: var(--ink3); margin: 0 0 14px 0; }
+  /* Non-active topics are hidden; only the .on topic is shown. */
+  aside.toc .topic { display: none; padding-left: 12px; border-left: 2px solid var(--leaf); }
+  aside.toc .topic.on { display: block; }
+  aside.toc .topic .lbl {
+    display: block; font-size: 14px; font-weight: 680; color: var(--leaf-ink); text-decoration: none;
+    letter-spacing: -0.01em; margin-bottom: 12px; line-height: 1.25;
+  }
+  aside.toc .topic .lbl:hover { text-decoration: underline; text-underline-offset: 3px; }
+  aside.toc .kw { display: flex; flex-wrap: wrap; gap: 6px; }
+  aside.toc .kw a {
+    font-size: 11.5px; line-height: 1.5; color: var(--ink2); text-decoration: none;
+    padding: 3px 10px; border-radius: 999px; background: var(--card); border: 1px solid var(--hair);
+    white-space: nowrap;
+  }
+  aside.toc .kw a:hover { color: var(--leaf-ink); background: var(--leaf-faint); border-color: var(--leaf-soft); }
+  /* Fallback before scrollspy marks a section: reveal the first topic. */
+  aside.toc.pending .topic:first-child { display: block; }
+
+  /* ── Responsive ──────────────────────────────────────── */
+  #drawer-scrim { display: none; }
+
+  /* Ultrawide: cap the reading column so lines don't stretch, keep TOC. */
+  @media (min-width: 1600px) {
+    main { padding-left: clamp(56px, 4vw, 120px); }
+  }
+
+  /* Drop the right-hand "On this page" TOC — content column reclaims the space. */
+  @media (max-width: 1280px) {
+    .shell, .topbar-inner { grid-template-columns: 260px minmax(0, 1fr); }
+    aside.toc { display: none; }
+    .topbar-inner .trail { grid-column: 2; }
+  }
+
+  /* Trim the left nav a touch before it starts crowding the prose. */
+  @media (max-width: 1080px) {
+    .shell, .topbar-inner { grid-template-columns: 232px minmax(0, 1fr); }
+    nav.side { padding: 24px 14px 48px 20px; }
+    .topbar-inner .lead { padding-left: 20px; }
+    .measure { max-width: 820px; }
+  }
+
+  /* Tablet / phone: single column, left nav becomes a slide-in drawer. */
+  @media (max-width: 900px) {
+    .shell { grid-template-columns: 1fr; }
+    .menu-btn { display: inline-flex; }
+    nav.side {
+      position: fixed; top: 0; left: 0; z-index: 40; height: 100vh; width: min(84vw, 300px);
+      background: var(--bg); padding: 24px 18px 48px 24px; border-right: 1px solid var(--hair);
+      transform: translateX(-100%); transition: transform .2s ease;
+      box-shadow: var(--shadow);
+    }
+    nav.side.open { transform: translateX(0); }
+    @media (prefers-reduced-motion: reduce) { nav.side { transition: none; } }
+    #drawer-scrim.show { display: block; position: fixed; inset: 0; z-index: 35; background: rgba(0,0,0,.4); }
+    main { padding: 0 clamp(18px, 5vw, 40px) 80px; }
+    .measure, .measure > p, .measure > ul, .measure > ol, .measure > h3 { max-width: none; }
+    /* Single column: fall back to flex so brand + trail sit at the edges. */
+    .topbar-inner { display: flex; }
+    .topbar-inner .lead { flex: 1 1 auto; padding: 0 8px 0 16px; }
+    .topbar-inner .trail { padding: 0 16px; }
+    .topbar .barlink.hide-sm { display: none; }
+  }
+
+  /* Small phones: tighten hero + let long headings shrink. */
+  @media (max-width: 480px) {
+    header.hero { padding-top: 36px; }
+    .hero h1 { font-size: clamp(26px, 8vw, 34px); }
+    .topbar .brand .tag, .verpick { display: none; }
+    main { padding-bottom: 64px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-inner">
+    <div class="lead">
+      <button class="menu-btn" id="menu-btn" type="button" aria-label="Open navigation" aria-expanded="false">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+      </button>
+      <a class="brand" href="#top">
+        <img class="logo" src="assets/logo.png" alt="Curry Leaves" width="26" height="26">
+        <span class="name">Curry Leaves AI Assistant</span>
+        <span class="tag">Guide</span>
+      </a>
+      <div class="verpick" id="verpick">
+        <button class="verbtn" id="verbtn" type="button" aria-haspopup="menu" aria-expanded="false">
+          v1.0.0
+          <svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4.5 6 7.5 9 4.5"/></svg>
+        </button>
+        <div class="vermenu" id="vermenu" role="menu" aria-label="Version">
+          <div class="verhead">Curry Leaves <strong>v1.0.0</strong></div>
+          <a role="menuitem" href="#daily">What's new</a>
+          <a role="menuitem" href="https://github.com/Curry-Leaves/curry-leaves-assistant/blob/main/CHANGELOG.md" target="_blank" rel="noopener">Changelog ↗</a>
+          <a role="menuitem" href="#faq">FAQ &amp; troubleshooting</a>
+        </div>
+      </div>
+    </div>
+    <div class="trail">
+      <a class="barlink hide-sm" href="#start">Get started</a>
+      <a class="barlink hide-sm" href="#faq">FAQ</a>
+      <span class="theme-toggle" role="group" aria-label="Theme">
+        <button type="button" data-theme-btn="light">Light</button>
+        <button type="button" data-theme-btn="dark">Dark</button>
+        <button type="button" data-theme-btn="system">Auto</button>
+      </span>
+      <a class="iconlink" href="https://github.com/Curry-Leaves/curry-leaves-assistant" target="_blank" rel="noopener" aria-label="GitHub repository" title="View on GitHub">
+        <svg width="19" height="19" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
+      </a>
+    </div>
+  </div>
+</div>
+
+<div id="drawer-scrim"></div>
+
+<div class="shell" id="top">
+<nav class="side" id="side" aria-label="Sections">
+  <div class="group">Start here</div>
+  <a href="#home">At a glance</a>
+  <a href="#daily">What changes in your day</a>
+  <a href="#overview">Overview</a>
+  <a href="#start">Getting started</a>
+
+  <div class="group">Everyday</div>
+  <a href="#capture">Capture &amp; Recordings</a>
+  <a href="#ask">Ask AI &amp; Voice</a>
+  <a href="#tasks">Tasks</a>
+  <a href="#dashboard">Dashboard</a>
+  <a href="#artifacts">Artifacts</a>
+
+  <div class="group">Your second brain</div>
+  <a href="#knowledge">Memory &amp; Skills</a>
+  <a href="#learning">How it gets to know you</a>
+  <a href="#agents">Assistants, Tools &amp; MCP</a>
+
+  <div class="group">Under the hood</div>
+  <a href="#trace">Trace &amp; Usage</a>
+  <a href="#settings">Settings</a>
+  <a href="#backup">Backup &amp; export</a>
+  <a href="#faq">FAQ &amp; troubleshooting</a>
+</nav>
+
+<main>
+<section id="home" class="home-lead">
+  <div class="scene">
+    <img class="art" src="assets/dash_bg_1.png"
+         alt="An illustrated Curry Leaves garden: one assistant tends the plants and checks Leaf Health, another explores the Knowledge Hub, and a third works at a desk under an Agent Workspace board showing Transcribe, Summarize, Extract Tasks, Update Hub — beside a Today's Focus board of Meeting Summary, Action Items, Knowledge Update, Reminders.">
+    <div class="veil"></div>
+    <div class="caption">
+      <span class="eyebrow">Curry Leaves AI Assistant · User Guide</span>
+      <p class="t">Your second brain — listens, remembers, gets it done.</p>
+      <p class="s">Curry Leaves turns every conversation into summaries, tasks, and knowledge that
+      compounds — with a team of assistants you hire and schedule, all private and on your machine.</p>
+      <div class="chips">
+        <span class="chip">🎙 Transcribe</span>
+        <span class="chip">📝 Summarize</span>
+        <span class="chip">✅ Extract tasks</span>
+        <span class="chip">📚 Knowledge Hub</span>
+        <span class="chip">🎯 Today's Focus</span>
+      </div>
+    </div>
+  </div>
+  <div class="measure">
+    <p class="lede">Stop taking minutes, chasing action items, and redoing the same weekly chores.
+    Curry Leaves listens to every conversation and turns it into summaries, tasks, and a memory that
+    gets sharper the more you use it — then a team of assistants you design and schedule quietly runs
+    your recurring work. All of it private, on your own machine.</p>
+    <div class="badges">
+      <span class="badge">Local-first transcription</span>
+      <span class="badge">Local voice, in and out</span>
+      <span class="badge">Wake-word assistant</span>
+      <span class="badge">Plain files — no database</span>
+      <span class="badge">Bring your own AI</span>
+      <span class="badge spice">macOS · Windows · Linux · Docker</span>
+    </div>
+    <div class="cards">
+      <a class="card" href="#capture"><span class="t">Listen &amp; Understand</span><span class="d">Record with a live, on-device transcript</span></a>
+      <a class="card" href="#agents"><span class="t">Plan &amp; Act</span><span class="d">Assistants summarize and extract tasks</span></a>
+      <a class="card" href="#knowledge"><span class="t">Knowledge Hub</span><span class="d">A self-tending, searchable second brain</span></a>
+      <a class="card" href="#dashboard"><span class="t">Today's Focus</span><span class="d">Live tiles: summaries, action items, reminders</span></a>
+    </div>
+  </div>
+  <figure class="media">
+    <div class="frame"><img src="assets/dashboard.gif" alt="The Dashboard in action: posting an ask, the Lead routing it to an assistant, the assistant working, and the result landing back — plus the live agent-desk banner and counts" loading="lazy"></div>
+    <figcaption><span class="tag">Live</span>Your day at a glance — post an ask, watch the team pick it up, and see the result land, with everything standing on the Dashboard.</figcaption>
+  </figure>
+  <figure class="media">
+    <div class="frame"><img src="assets/tour.gif" alt="Recording a meeting, stopping it, and the transcript being captured" loading="lazy"></div>
+    <figcaption><span class="tag">Live</span>Capture in action — record, stop &amp; summarize, and the recording lands in your library.</figcaption>
+  </figure>
+</section>
+
+<section id="daily">
+  <p class="kicker">Start here</p>
+  <h2>What changes in your day</h2>
+  <div class="measure">
+    <p>The point isn't recording — it's everything you stop doing by hand.</p>
+    <div class="tablewrap"><table>
+      <thead><tr><th>Today</th><th>With Curry Leaves</th></tr></thead>
+      <tbody>
+      <tr><td data-plain>Scribbling notes during the meeting, half-listening</td><td>Hit <kbd>⌘R</kbd> and be fully present — transcript, summary, and action items are waiting when you're back at your desk</td></tr>
+      <tr><td data-plain>"I'll send that by Friday" evaporates by Thursday</td><td>Spoken commitments become todos automatically, each linked to the moment it was said</td></tr>
+      <tr><td data-plain>Adding a to-do, then doing all the work yourself anyway</td><td>Jot "research our top 3 competitors" and the team just starts — the todo goes to Working, then Review with the finished result attached to it</td></tr>
+      <tr><td data-plain>Writing the follow-up email after every client call</td><td>Your "Client calls" meeting template drafts it before you've refilled your coffee — you edit, not compose</td></tr>
+      <tr><td data-plain>"What did we decide about pricing?" → 20 minutes of scrolling</td><td>Ask Memory in plain words, click provenance, hear the exact moment it was decided</td></tr>
+      <tr><td data-plain>Missing the thing you should have asked in the room</td><td>A live copilot watches the transcript as you talk and surfaces the open loop, the answer from your notes, or "you decided this in March"</td></tr>
+      <tr><td data-plain>Assembling Friday status updates from memory</td><td>Dashboard tiles keep the answers standing — open items, decisions, tomorrow's prep</td></tr>
+      <tr><td data-plain>Re-explaining your context to a chatbot every session</td><td>Your assistants already know who you are, how you work, and everything you've recorded</td></tr>
+      <tr><td data-plain>What you know lives in your head and scattered docs — and fades</td><td>Every meeting and document compounds into one linked knowledge base that tends itself</td></tr>
+      <tr><td data-plain>Recurring chores: the weekly recap, the Monday plan, the digest</td><td>Describe an assistant once, give it a schedule, and it does that job every week without being asked</td></tr>
+      </tbody>
+    </table></div>
+    <h3>A day with it</h3>
+    <ul class="day">
+      <li><strong>9:00 — standup.</strong> ⌘R on the way in. You talk; nobody takes minutes. By 9:20 the summary is on the recording and two "I'll handle it" moments are todos with your name on them.</li>
+      <li><strong>11:30 — client call.</strong> The call ends; the follow-up draft is already an output on the recording. Ninety seconds of editing instead of twenty minutes of writing.</li>
+      <li><strong>14:00 — "didn't we settle this in March?"</strong> One search in Memory — by meaning, not keywords. The note says yes; the provenance link plays the exact sentence.</li>
+      <li><strong>16:30 — wrap-up.</strong> One glance at the Dashboard: what's still open, what tomorrow needs, what the assistants filed today. No tab archaeology.</li>
+      <li><strong>Friday.</strong> The weekly-review assistant posts its recap on schedule, and Usage shows what the week of AI help actually cost.</li>
+    </ul>
+    <h3>And it compounds</h3>
+    <p>A recorder helps you once; Curry Leaves gets more useful the longer you use it.</p>
+    <ul>
+      <li><strong>Memory grows richer, not messier.</strong> Every meeting and document distills into linked notes with provenance. By month three, asking <a class="inline" href="#knowledge">Memory</a> beats searching your drive — and the Gardener keeps it healthy while contradictions get flagged for your review, never silently overwritten.</li>
+      <li><strong>It gets to know you.</strong> Each night an assistant re-reads the day's conversations and keeps only what's durable — how you work, what you're responsible for, what happened worth remembering. You stop <a class="inline" href="#learning">re-explaining yourself</a>.</li>
+      <li><strong>The assistants are yours to shape.</strong> Nothing here is a fixed feature. Describe any workflow in plain English — "watch for customer complaints and draft an apology", "turn interviews into candidate scorecards" — and it becomes an <a class="inline" href="#agents">assistant</a> with exactly the tools, triggers, and permissions you chose.</li>
+      <li><strong>Life admin runs on a schedule.</strong> A Monday-morning planning brief, a daily digest tile, a weekly review — <a class="inline" href="#agents">scheduled assistants</a> do the recurring work without being asked, and every run is <a class="inline" href="#trace">traceable</a> if you ever wonder what happened.</li>
+    </ul>
+    <figure class="media">
+      <div class="frame"><img src="assets/ask.gif" alt="Asking a question in chat and getting a finished presentation back" loading="lazy"></div>
+      <figcaption><span class="tag">Live</span>A real request — ask about a recording, and an assistant turns it into a shareable artifact.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<section id="overview">
+  <p class="kicker">Start here</p>
+  <h2>Overview</h2>
+  <div class="measure">
+    <p>Everything in Curry Leaves flows from one idea: <strong>capture once, let assistants do the rest</strong>.
+    When a recording finishes, it becomes an event; assistants that subscribe to that event wake up and work.</p>
+    <div class="flow" role="img" aria-label="Pipeline: record, transcribe, event, assistants, outputs">
+      <span class="step">record</span><span class="arr">→</span>
+      <span class="step">transcribe on-device</span><span class="arr">→</span>
+      <span class="step hot">event</span><span class="arr">→</span>
+      <span class="step hot">assistants run</span><span class="arr">→</span>
+      <span class="step">summary · todos · knowledge</span>
+    </div>
+    <p>What makes it different:</p>
+    <ul>
+      <li><strong>Local-first.</strong> Audio never leaves your machine. Three models run on-device: Whisper for transcription, a small embedding model for search-by-meaning, and Kokoro for the voice that speaks back. Only the text your assistants work on goes to the AI provider you chose — or nowhere at all, with Ollama.</li>
+      <li><strong>Files you own.</strong> Assistants are markdown. Notes are markdown. Settings are JSON. It all lives in <code>~/.curry-leaves</code> — back it up, sync it, grep it.</li>
+      <li><strong>Transparent.</strong> Every run is traced end-to-end and every token is metered, right down to what each assistant costs you per week.</li>
+    </ul>
+    <div class="cards">
+      <a class="card" href="#capture"><span class="t">Capture</span><span class="d">Record with a live transcript</span></a>
+      <a class="card" href="#ask"><span class="t">Ask AI &amp; Voice</span><span class="d">Chat, or just talk to it</span></a>
+      <a class="card" href="#agents"><span class="t">Assistants</span><span class="d">Hire your own team</span></a>
+      <a class="card" href="#knowledge"><span class="t">Memory</span><span class="d">A self-tending second brain</span></a>
+      <a class="card" href="#dashboard"><span class="t">Dashboard</span><span class="d">Live tiles, one glance</span></a>
+      <a class="card" href="#trace"><span class="t">Trace</span><span class="d">See exactly what happened</span></a>
+    </div>
+  </div>
+</section>
+
+<section id="start">
+  <p class="kicker">Start here</p>
+  <h2>Getting started</h2>
+  <div class="measure">
+    <h3>Run it</h3>
+    <p><strong>pip (fastest to try):</strong></p>
+    <pre><code>pip install curry-leaves-assistant
+curry-leaves-assistant                    # then open http://localhost:5177</code></pre>
+    <p><strong>Docker (browser, no install):</strong></p>
+    <pre><code>cp src/curry_leaves_assistant/.env.docker.example .env   # add an API key, or skip for Copilot login
+docker compose up --build                                # then open http://localhost:5177</code></pre>
+    <p><strong>Desktop app (from source):</strong></p>
+    <pre><code>./start.sh          # sets up the venv + node deps and launches Electron</code></pre>
+    <p>Needs Python 3.11+. Spoken replies additionally need the system <code>espeak-ng</code> binary
+    (<code>brew install espeak-ng</code> on macOS) — it's already in the Docker image.</p>
+    <h3>First launch</h3>
+    <p>A short wizard walks you through the setup, adapting to how you say you'll use it. Only the last
+    step is required — everything else has a <em>Skip</em>, and you can change all of it later in Settings.</p>
+    <ol>
+      <li><strong>Your name</strong> — what your assistants should call you.</li>
+      <li><strong>How you'll use it</strong> — meetings &amp; recordings, voice assistant, notes &amp; knowledge, a team of assistants. Not cosmetic: your picks go into your profile, shape what every assistant knows about the job it's doing for you, <em>and</em> decide which of the next steps you even see.</li>
+      <li><strong>Language</strong> for transcription.</li>
+      <li><strong>Transcription model</strong> — one is marked <em>recommended</em> based on step 2. It downloads in the background rather than blocking you.</li>
+      <li><strong>Voice</strong> <em>(if you picked voice)</em> — the speaking voice for hands-free replies.</li>
+      <li><strong>Knowledge</strong> <em>(if you picked notes)</em> — turn on search-by-meaning for your memory.</li>
+      <li><strong>AI provider</strong> — paste a key for any of a dozen services, sign in with GitHub Copilot or OpenAI Codex, point at a local Ollama, or add your own OpenAI-compatible endpoint. Keys are checked as you connect, so a bad one is refused rather than quietly saved.</li>
+      <li><strong>Create a PIN</strong> (4–12 digits). No account, no sign-up — this is your passcode, and setting it is what finishes setup.</li>
+    </ol>
+    <p>Quit halfway and it resumes where you left off, with what you'd already entered. Then open
+    <strong>Capture</strong> and talk — summary, action items and notes appear on the recording within a
+    minute or two.</p>
+    <figure class="media">
+      <div class="frame"><img src="assets/setup-wizard.png" alt="First-run wizard step: What will you use it for?" loading="lazy"></div>
+      <figcaption><span class="tag">Screenshot</span>The first-run wizard — pick what you'll use it for, and it tunes what to suggest next.</figcaption>
+    </figure>
+    <div class="callout">Running it headless? Set <code>CURRY_LEAVES_PIN</code> and the wizard is
+    skipped entirely. And if the app can't reach its backend you get an editable
+    <strong>Backend URL</strong> field rather than a spinner — which is also how a browser tab points
+    at a backend running somewhere else.</div>
+    <h3>What downloads on first use</h3>
+    <p>Everything that runs locally fetches its weights once, in the background, so nothing blocks you:</p>
+    <ul>
+      <li><strong>Whisper</strong> — transcription. Pick the size in Settings → Recording.</li>
+      <li><strong>MiniLM (~90 MB)</strong> — search by meaning. It warms in the background on first launch and switches on at your <em>next</em> start; until then search is keyword-only, and Memory shows a "keyword only" badge so you're never guessing.</li>
+      <li><strong>Kokoro</strong> — the speaking voice, fetched the first time you use voice.</li>
+    </ul>
+    <div class="callout"><strong>⌘R / Ctrl+R</strong> jumps to Capture and toggles recording from anywhere.
+    <strong>⌘K / Ctrl+K</strong> searches everything at once — notes, recordings, todos, reminders, artifacts, assistants — or type <code>&gt;</code> for commands.
+    <strong>⌘⇧V / Ctrl+Shift+V</strong> talks to your assistant on the spot, even with the wake word switched off.</div>
+  </div>
+</section>
+
+<section id="capture">
+  <p class="kicker">Everyday</p>
+  <h2>Capture &amp; Recordings</h2>
+  <div class="measure">
+    <figure class="media">
+      <div class="frame"><img src="assets/capture-live.png" alt="Capture screen mid-recording with the live transcript and copilot panel" loading="lazy"></div>
+      <figcaption><span class="tag">Screenshot</span>Capture mid-recording — live transcript in the centre, copilot on the left, template and attendees on the right.</figcaption>
+    </figure>
+    <h3>Capture</h3>
+    <ul>
+      <li><strong>Record or Listen.</strong> <em>Record</em> saves automatically when you stop; <em>Listen</em> asks whether to keep or discard — handy for a quick check you don't want to file.</li>
+      <li><strong>Live transcript</strong> appears as you speak (about every 8 seconds of audio), with pause/resume and a live level meter.</li>
+      <li><strong>Meeting templates</strong> decide what you get when you stop — a "1:1" template might produce just a summary; "Client calls" adds a follow-up email draft. A template is an ordered list of output sections, and you can have Curry Leaves draft one for you from a sentence, then revise it.</li>
+      <li><strong>Language &amp; microphone</strong> — pick the input device and, per recording, the transcription language. Language follows your Settings default with a per-recording override, including auto-detect: twelve languages plus auto-detect.</li>
+      <li><strong>Attachments, notes &amp; attendees</strong> — drop the agenda or brief onto the recording (converted to text for context), pin timestamped notes as it runs, and add attendees; naming an attendee also pre-briefs the copilot and biases the transcriber toward their name.</li>
+      <li><strong>Save to Knowledge Hub</strong> and <strong>Don't store audio</strong> are per-recording switches — file the meeting into Memory, and optionally discard the audio once the transcript exists.</li>
+    </ul>
+    <h3>A copilot in the room</h3>
+    <p>If a meeting's template opts in, a live copilot watches the transcript <em>while you're still
+    talking</em> and surfaces at most two small cards at a time — never a wall of text mid-conversation.
+    A card might be an open loop nobody closed, an answer pulled out of your own notes, a question
+    worth asking, or <em>"you decided this in March"</em>. There's a refresh button if you want a pass
+    right now.</p>
+    <p>Two assistants, two moments: the <strong>Live Copilot</strong> works during the meeting; the
+    <strong>Meeting Copilot</strong> picks up after it ends, writing the template's sections and turning
+    things people actually agreed to into todos or reminders.</p>
+    <h3>Recordings</h3>
+    <p>Every past recording with everything produced from it: the <strong>transcript</strong>, the
+    <strong>summary and action items</strong> (tick them off in place), one <strong>output per section</strong>
+    the template defines — each on its own tab — plus your own <strong>notes, links and tags</strong>, and a
+    per-recording <strong>Save to Memory</strong> switch.</p>
+    <p>Three ways to make it try again:</p>
+    <ul>
+      <li><strong>Re-run</strong> a single output section, or re-run the whole meeting copilot.</li>
+      <li><strong>Fix &amp; re-run</strong> — tweak the template in plain words ("add a risks section") and regenerate from that.</li>
+      <li><strong>Resubmit</strong> — re-fire the recording so every assistant bound to it runs again from scratch.</li>
+    </ul>
+    <h3>Editing audio</h3>
+    <p><strong>Trim</strong> down to just the parts worth keeping: drag one or more regions of the waveform to
+    <em>keep</em>, preview them, and save. The kept regions are stitched together and the recording is
+    <strong>re-transcribed</strong>, which re-runs the whole pipeline on the new audio.</p>
+    <figure class="media">
+      <div class="frame"><img src="assets/trim.gif" alt="Reviewing a finished recording and its transcript" loading="lazy"></div>
+      <figcaption><span class="tag">Live</span>A finished recording — transcript, tasks, and notes &amp; files, all a tab away.</figcaption>
+    </figure>
+    <h3>Dictation</h3>
+    <p>Any text box with a microphone icon takes speech — short clips are transcribed straight into the field.</p>
+  </div>
+</section>
+
+<section id="ask">
+  <p class="kicker">Everyday</p>
+  <h2>Ask AI &amp; Voice</h2>
+  <div class="measure">
+    <p>A full chat workspace where you talk to any of your assistants — each with its own instructions,
+    tools, and permissions. Conversations save automatically as <strong>sessions</strong>; open pages keep
+    their state, so switching tabs never resets a chat.</p>
+    <figure class="media">
+      <div class="frame"><img src="assets/ask-ai.png" alt="Ask AI conversation showing a tool-call result table and the composer" loading="lazy"></div>
+      <figcaption><span class="tag">Screenshot</span>Ask AI — the assistant reaches for a tool, shows the result inline, and keeps the thread going.</figcaption>
+    </figure>
+    <ul>
+      <li><strong>Streaming replies</strong> with expandable <strong>thinking</strong> blocks, and a <strong>thinking-effort</strong> chip (off → high) when you want it to reason harder or faster.</li>
+      <li><strong>Tool call cards</strong> show every tool the assistant used — inputs and results, sub-agents shown as a tree. Nothing happens off-screen.</li>
+      <li><strong>Approvals.</strong> Before an assistant uses a tool that writes or acts, it pauses and asks — allow once, allow for this chat, always allow, or deny. Flip to <strong>Autonomous</strong> to let a run act without stopping, or leave it on <strong>Ask first</strong>. Assistants can ask you clarifying questions too.</li>
+      <li><strong>Add while it works.</strong> Type mid-stream and choose to <strong>steer</strong> the current turn or queue a <strong>follow-up</strong> for after it lands; queued messages show as chips you can remove.</li>
+      <li><strong>@-mention &amp; attach.</strong> Pull a recording, note, todo, reminder or file into the prompt with <code>@</code> (searched by meaning), or drop in files — PDFs are OCR'd — as context.</li>
+      <li><strong>Pick the assistant and model</strong> per conversation, and toggle <strong>Smart context</strong> to reclaim tokens from stale tool results automatically.</li>
+      <li><strong>Fork &amp; save.</strong> Branch a new chat from any of your earlier messages, or turn a whole conversation into a reusable <a class="inline" href="#knowledge">skill</a>.</li>
+      <li><strong>Compact.</strong> A <strong>context bar</strong> shows how full the window is; one click summarizes the chat into a recap and continues — same context, far fewer tokens.</li>
+    </ul>
+    <div class="callout">A live chat <strong>outlives tab switches</strong> and can be <strong>watched read-only from another tab or device</strong> — you'll see a "Live" badge when a conversation is streaming somewhere else.</div>
+
+    <h3>Talking to it</h3>
+    <p>A <strong>Voice</strong> button in the composer does two things — and like transcription, the
+    speech is generated <em>on your machine</em>. Nothing is sent away to be spoken.</p>
+    <ul>
+      <li><strong>Spoken replies.</strong> The assistant reads its answers aloud, starting on the first
+      sentence rather than waiting for the whole reply to finish — so there's very little dead air.</li>
+      <li><strong>Hands-free voice chat.</strong> Turn it on and just talk. It listens, notices when
+      you've stopped (about 1.2 seconds of silence), sends your turn, speaks the reply, and goes back
+      to listening. No buttons between turns.</li>
+    </ul>
+    <div class="callout">One honest limitation: <strong>you can't talk over it.</strong> While the
+    assistant is speaking, the microphone is off — deliberately, so it never transcribes its own voice.
+    If it's heading off on a tangent, click the toggle to stop it and carry on.</div>
+
+    <h3>"Hey Curry" — from anywhere in the app</h3>
+    <p>That's voice <em>inside</em> the chat screen. There's also a <strong>wake word</strong> listening
+    across the whole app, so you can ask something without stopping what you're doing. Say the phrase, a
+    panel appears, you ask, it answers — out loud and on screen. One question per wake.</p>
+    <p><strong>The listening happens inside the app itself.</strong> No audio goes anywhere to be
+    recognised — not to a cloud service, not even to your own backend. The honest trade-off: the
+    microphone really is open the whole time it's armed, so your system's mic indicator stays lit. The
+    dot in the sidebar is there so that's never a mystery.</p>
+    <ul>
+      <li><strong>Six phrases built in</strong> — Hey Curry, Hey Assistant, Hey Buddy, Hey Dude, Hey Clone,
+      Buddy Boy — one model tuned to recognise them all.</li>
+      <li><strong>Or train your own.</strong> Drop a fused openWakeWord <code>.onnx</code> file into
+      <code>~/.curry-leaves/models/wakeword/</code> and it appears in the picker.</li>
+      <li><strong>Silent mode.</strong> Turn speech off and answers just appear on screen — useful in a
+      shared room, and it works on installs with no speech output at all.</li>
+    </ul>
+    <div class="callout"><strong>It answers; it doesn't act.</strong> A spoken question runs without the
+    ability to stop and ask your permission, so anything needing approval won't go through. Ask it
+    things by voice; use chat to have it <em>do</em> things. Spoken answers also aren't kept in your
+    chat history — they're one-offs.</div>
+    <p>Off until you switch it on, and the detection model is a ~3 MB download. The built-in model is
+    Curry Leaves' own, published on Hugging Face under <strong>Apache-2.0</strong> — free to use,
+    including commercially.</p>
+  </div>
+</section>
+
+<section id="tasks">
+  <p class="kicker">Everyday</p>
+  <h2>Tasks</h2>
+  <div class="measure">
+    <p>Everything actionable in one place.</p>
+    <ul>
+      <li><strong>Todos</strong> — with priority and due date. Assistants create them too: "I'll send the deck by Friday" in a meeting becomes a todo with a backlink to the recording it came from.</li>
+      <li><strong>Reminders</strong> — time-anchored, with notes.</li>
+      <li><strong>The pool</strong> — a shared queue between you and your team, and the front door for <em>"here's a job, someone deal with it"</em>. Post a task (⌘K → New task) and the <strong>Lead</strong> assistant reads it, checks who's idle, and routes it to the best fit. The result lands back on the item.</li>
+    </ul>
+    <div class="callout">The Lead routes; it doesn't do the work itself. It won't hire someone new for
+    a task nobody fits, and it won't split one task across several assistants — it'll tell you instead.</div>
+
+    <h3>Todos that start themselves</h3>
+    <p>You don't have to hand every job to the team by hand. The moment you add a todo, a built-in
+    <strong>Todo Triage</strong> assistant reads it and makes one call: <em>can the team actually do this
+    with their tools?</em></p>
+    <ul>
+      <li><strong>Actionable work</strong> — "research our top 3 competitors", "summarize the Q3 notes",
+      "draft a dashboard tile for open risks" — is posted straight to the pool. The <strong>Lead</strong>
+      routes it to the best-fit assistant, and the todo flips to <strong>Working</strong> while the run is
+      in flight.</li>
+      <li><strong>Personal reminders</strong> — "call mom", "buy milk", "take medication" — are left
+      completely alone. Those are yours to do; the team never touches them.</li>
+    </ul>
+    <p>When the assistant finishes, the <strong>result is attached back onto the todo</strong> and it moves
+    to <strong>Review</strong> — so the answer is waiting on the item itself, for now and for later. The
+    run's whole conversation is kept too, so you can open it and <strong>continue where it left off</strong>
+    if you want more. Nothing is lost, and nothing loops: the write-back never re-triggers triage.</p>
+    <div class="callout">Triage only <em>judges and hands off</em> — it never does the task itself, never
+    edits your todo, and when it's unsure it leaves the todo alone rather than spending a run on a maybe.
+    It's a built-in assistant like any other, so you can inspect or disable it under
+    <a class="inline" href="#agents">Assistants</a>.</div>
+  </div>
+</section>
+
+<section id="dashboard">
+  <p class="kicker">Everyday</p>
+  <h2>Dashboard</h2>
+  <div class="measure">
+    <p>Your home tab — always open, always live. Boards hold <strong>tiles</strong>, and every tile is a
+    standing question you've given an assistant: <em>"Unresolved action items this week"</em>,
+    <em>"What needs prep tomorrow?"</em>. Each refresh, the assistant runs and the tile shows the answer —
+    in a checked, structured shape, which is why tiles stay clean instead of drifting into stray prose.
+    A general-purpose assistant ships ready for this, so you can add your first tile without building
+    anything first.</p>
+    <figure class="media">
+      <div class="frame"><img src="assets/dashboard.png" alt="Configuring a dashboard tile: focus, rules, and output format" loading="lazy"></div>
+      <figcaption><span class="tag">Screenshot</span>Configuring a tile — a plain-language focus, optional rules, and the output format the answer is shaped into.</figcaption>
+    </figure>
+    <ul>
+      <li><strong>Focus &amp; rules</strong> — the tile's brief, plus optional constraints (length, filters, tone).</li>
+      <li><strong>Output formats</strong> — summary, list, metric, table, markdown, or diff; plus ready-made shapes like <em>Briefing doc</em> and <em>Meeting brief</em> that give the answer a fixed skeleton.</li>
+      <li><strong>Styles</strong> — card, flat, outlined, accent-bar, and three fancy ones: glass, glow, gradient-edge; all theme-aware.</li>
+      <li><strong>Refresh</strong> — manual, on a schedule (down to a cron expression), or on an event (e.g. every new transcript).</li>
+      <li><strong>Alerts</strong> — give a tile a condition and it can fire a desktop notification when the answer meets it.</li>
+      <li><strong>AI setup</strong> — describe what the tile should show in one sentence and Curry Leaves drafts the title, focus, rules, best-fit format, and empty-state message.</li>
+    </ul>
+    <p>Two ways to view it: an <strong>Inbox</strong> that reads like a briefing, or classic <strong>Boards</strong>
+    of tiles you drag and resize — layouts save automatically, and you can create as many boards as you like.</p>
+  </div>
+</section>
+
+<section id="knowledge">
+  <p class="kicker">Your second brain</p>
+  <h2>Memory &amp; Skills</h2>
+  <div class="measure">
+    <p>One screen for everything remembered: your <strong>notes</strong> (people, projects, decisions),
+    what your assistants have learned <strong>about you</strong>, what they've learned about
+    <strong>their own work</strong>, and their <strong>skills</strong> — the procedures for how things
+    get done.</p>
+    <p>All of it is one bundle of plain markdown notes on disk, sorted by what kind of thing each note
+    is rather than filed into separate folders. That's not an implementation detail you can ignore: it's
+    what lets Curry Leaves connect a fact back to the meeting that produced it, and lets a single search
+    span your notes, what it knows about you, and what happened last month — all at once.</p>
+    <figure class="media">
+      <div class="frame"><img src="assets/memory.png" alt="Memory screen: note tree on the left, an open note, and its backlinks" loading="lazy"></div>
+      <figcaption><span class="tag">Screenshot</span>The Memory screen — note tree on the left, the open note in the middle, and its links, backlinks, and mini-graph on the right.</figcaption>
+    </figure>
+    <h3>Your notes</h3>
+    <ul>
+      <li><strong>Notes</strong> are plain markdown with wiki-style <code>[[links]]</code>. Browse the tree and edit in place with a proper rich editor — you see headings, tables and lists as they'll look, while what's on disk stays plain markdown any other app can open.</li>
+      <li><strong>Eleven kinds of live block</strong> — flowcharts (Mermaid), charts, diff charts, timelines, calendars, kanban boards, mind maps, waterfalls, sankey flows, API specs and tabbed sections. Insert one from the editor and it renders interactively, but stays editable as plain text underneath so nothing is trapped in a widget. They render everywhere the app shows markdown, so a chart an assistant draws also appears properly in chat replies, meeting summaries and dashboard tiles.</li>
+      <li><strong>AI editing, two ways.</strong> Ask from the cursor and you get a compact accept/reject card. Select a passage first and you get a full <strong>diff</strong> of the note instead, hunk by hunk — so you can see everything a rewrite touched beyond the part you highlighted, and take only what you want.</li>
+      <li><strong>Search by meaning</strong>, not just matching words — ask "what did we decide about pricing" and get the note that says it, however it was phrased. This needs a small model that downloads in the background on first launch and switches on at your next start; until then search is keyword-only and says so.</li>
+      <li><strong>Graph view</strong> maps the whole base — clusters and orphans at a glance.</li>
+      <li><strong>History</strong> keeps every version of every note, with restore and a note of what changed it.</li>
+      <li><strong>Provenance</strong> links what a note claims to the exact transcript span it came from — speaker and timecodes included.</li>
+      <li><strong>Conflicts</strong> — contradicting information flags the note for your review instead of silently overwriting it, with a count in the tree so you can find them.</li>
+      <li><strong>Archive</strong> — retire a note without deleting it; it moves aside but stays searchable.</li>
+    </ul>
+    <h3>What it remembers</h3>
+    <p>A <strong>Facts</strong> tab sorts everything remembered into four plain-language kinds, with one
+    search box across all of them:</p>
+    <div class="tablewrap"><table>
+      <thead><tr><th>Kind</th><th>What it holds</th></tr></thead>
+      <tbody>
+      <tr><td><strong>Facts</strong></td><td>What every assistant knows about you — how you work, what you're responsible for</td></tr>
+      <tr><td><strong>Assistant notes</strong></td><td>How one assistant does its own job. Private to it</td></tr>
+      <tr><td><strong>Events</strong></td><td>Notable things that actually happened, worth referring back to</td></tr>
+      <tr><td><strong>Lessons</strong></td><td>Durable takeaways folded out of clusters of past events</td></tr>
+      </tbody>
+    </table></div>
+    <p>You can add a fact yourself, and you can make it <strong>forget</strong> anything — nothing here
+    is a black box you're stuck with.</p>
+    <h3>Feeding it</h3>
+    <p>Recordings with <em>Save to Memory</em> file themselves. To add outside material, use the
+    <strong>Ingest</strong> tab (<em>Feed docs</em>): paste text or upload documents — PDF, Word,
+    PowerPoint, Excel and more are converted to markdown, and scans are OCR'd. The <strong>Activity</strong>
+    panel shows every job live: converting → queued → running → filed, and the filer edits an existing
+    note rather than making a duplicate when the material already exists.</p>
+    <h3>Keeping it healthy</h3>
+    <p><strong>Health</strong> is a read-only sweep — broken links, orphans, missing frontmatter, tag drift.
+    The <strong>Gardener</strong> is the maintenance pass: it repairs dangling links, flags stale conflicts
+    and aging notes, and writes a report you can read after every pass.</p>
+    <figure class="media">
+      <div class="frame"><img src="assets/graph.png" alt="The interactive knowledge graph with typed, colour-coded nodes" loading="lazy"></div>
+      <figcaption><span class="tag">Screenshot</span>The knowledge graph — notes as typed, colour-coded nodes; drag, filter by type, and follow the links between them.</figcaption>
+    </figure>
+    <h3>Skills</h3>
+    <p>Reusable playbooks stored as folders — a <code>SKILL.md</code> plus references, scripts, assets.
+    Edit a skill's whole file tree in place, create new skills from the UI, and bind them to assistants.
+    A built-in skill-learner grows new ones from what it observes.</p>
+  </div>
+</section>
+
+<section id="learning">
+  <p class="kicker">Your second brain</p>
+  <h2>How it gets to know you</h2>
+  <div class="measure">
+    <p>The thing that makes an assistant useful on day ninety rather than day one is that it stopped
+    needing to be told. Curry Leaves works at this deliberately, and in the open.</p>
+    <h3>It reads the day back</h3>
+    <p>Each night, an assistant called the <strong>Memory Keeper</strong> re-reads the conversations you had that day
+    — the clean text of them, with tool calls and approvals stripped out — and learns only from what
+    <em>you</em> said. It keeps two kinds of thing: durable <strong>facts</strong> about you, and
+    <strong>events</strong> worth remembering.</p>
+    <p>The bar is set high on purpose. A profile full of trivia is worse than a sparse one, so most of
+    a conversation is correctly thrown away. A chat is only re-read if it's grown since last time.</p>
+    <h3>It learns how to work, too</h3>
+    <p>Separately, the <strong>Skill Learner</strong> watches how runs actually go. When something is repeatedly done
+    the slow way or fails the same way twice, it writes it up as a <strong>trial skill</strong> — on
+    probation, not law. Skills that demonstrably help get promoted; ones that don't get retired. Nothing
+    is permanent because it happened once.</p>
+    <h3>You can see and edit all of it</h3>
+    <p>Everything above lands in <strong>Memory → Facts</strong>, in plain language, with a Forget button.
+    There is no hidden profile. If it learned something wrong, delete it; if it missed something, add it
+    yourself.</p>
+    <div class="callout">Assistants can also search their own memory <em>mid-task</em>, by meaning — so
+    they can reach for something relevant that wasn't already loaded into the conversation.</div>
+  </div>
+</section>
+
+<section id="artifacts">
+  <p class="kicker">Everyday</p>
+  <h2>Artifacts</h2>
+  <div class="measure">
+    <p>Most of what an assistant makes is text in a chat. <strong>Artifacts</strong> are for the things
+    that aren't — a deck, a report, a one-page site, a diagram. Ask for "a short deck on last quarter's
+    retro" and it's written as a self-contained page and saved here.</p>
+    <ul>
+      <li><strong>A real link.</strong> Every artifact gets a shareable URL with an unguessable token —
+      send it to someone with no Curry Leaves, no account, no login. They can open it and download it.</li>
+      <li><strong>Revocable.</strong> Changed your mind? <em>Revoke link</em> mints a new token, and
+      every URL you shared before stops working immediately.</li>
+      <li><strong>Editable.</strong> Text artifacts can be edited in place; <em>Open</em> shows you the
+      exact page a recipient sees, so there's only ever one rendering to trust.</li>
+    </ul>
+    <p>They live in <code>~/.curry-leaves/artifacts/</code>, are included in backups, and turn up in ⌘K
+    search like everything else.</p>
+  </div>
+</section>
+
+<section id="agents">
+  <p class="kicker">Your second brain</p>
+  <h2>Assistants, Tools &amp; MCP</h2>
+  <div class="measure">
+    <p>Assistants are the workforce. A team ships with the app — a general chat assistant, a lead that
+    routes incoming work, a live meeting copilot and a post-meeting one, a filer and a maintainer for
+    your notes, a triage assistant that turns actionable <a class="inline" href="#tasks">todos</a> into
+    real work automatically, plus two that quietly learn (one about you, one about how the work goes) —
+    and you can hire your own in a couple of minutes. The Assistants screen has five tabs:
+    <strong>List</strong>, <strong>Team</strong>, <strong>Tools</strong>, <strong>MCP</strong>, and an
+    experimental <strong>Office</strong>.</p>
+    <h3>The List — what's happening right now</h3>
+    <p>The default view is three live columns: your assistants grouped by state (working, scheduled, idle,
+    paused); the <strong>Work Kernel</strong> showing every job running, queued, or given up on; and the
+    <strong>common pool</strong>, where you post a job and the <strong>Lead</strong> routes it to the
+    best-fit assistant. It's the fastest way to see what the team is doing and what's waiting on you.</p>
+    <figure class="media">
+      <div class="frame"><img src="assets/tools.png" alt="The Tools tab: a searchable list of tools, each with what it does and its inputs" loading="lazy"></div>
+      <figcaption><span class="tag">Screenshot</span>The Tools tab — every tool an assistant can hold, with what it does, its inputs, and a switch to grant or revoke it.</figcaption>
+    </figure>
+    <h3>The Team</h3>
+    <p>A roster of staff cards: who they are, what they do, whether they're working right now, when they
+    last ran, their shift in plain words (<em>"Every day at 09:00"</em>) — and what each one has cost you
+    over the last week, down to the cent. Filter to <em>Everyone</em>, just <em>Yours</em>, or the
+    <em>Default</em> team.</p>
+    <h3>Hiring</h3>
+    <p>Describe the role, or tap one of the ready-made shapes (News Scout, Inbox Watcher, Note Gardener,
+    Meeting Sidekick, Daily Planner, Research Analyst). Curry Leaves drafts <strong>three different
+    candidates</strong> at once — a focused one, a thorough one, an on-call one — and you hire whichever
+    fits, or open one up and tweak it before saving.</p>
+    <p>You can still build one by hand: instructions, tools, triggers, schedule, model, step and
+    permission limits. Assistants live as markdown under <code>~/.curry-leaves/agents/</code> — read
+    them, diff them, share them.</p>
+    <h3>When they run</h3>
+    <p>On <strong>triggers</strong> (new transcript, document ingested, todo created…), on a
+    <strong>schedule</strong> (including cron expressions), <strong>manually</strong>, from the
+    <strong>pool</strong>, or in chat. Work is queued properly — assistants that write to your notes
+    never trample each other, a crashed job retries and is eventually set aside rather than looping
+    forever, and one waiting on your approval steps out of the queue instead of blocking it. The List
+    view shows all of that live: what's running, what's queued, what gave up.</p>
+    <h3>Tools &amp; MCP</h3>
+    <p>The <strong>Tools</strong> tab lists everything assistants can do, each with a risk level and global
+    on/off. The <strong>MCP</strong> tab extends the toolbox with any <strong>MCP server</strong> — a local
+    command (stdio) or a remote HTTP endpoint: test the connection, pick exactly which tools to expose, and
+    they appear in every assistant's tool list.</p>
+    <h3>The Office <span class="badge spice">Coming soon</span></h3>
+    <p>An experimental view — turned off in the current build — renders the team as an isometric office
+    floor: each assistant a person at a desk who walks to the room that matches the tool they pick up (the
+    library to read your notes, the web desk to search, the studio to make something), with a front desk
+    where work queues and your desk where anything awaiting your approval waits. Until it's switched on,
+    the List is home.</p>
+    <figure class="media">
+      <div class="frame"><img src="assets/office.png" alt="The Office — an isometric floor of assistants at their desks, one running a task" loading="lazy"></div>
+      <figcaption><span class="tag">Preview</span>The Office (experimental) — an isometric floor where each assistant has a desk and walks to the room matching the tool it picks up.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<section id="trace">
+  <p class="kicker">Under the hood</p>
+  <h2>Trace &amp; Usage</h2>
+  <div class="measure">
+    <p>Curry Leaves never does anything you can't inspect.</p>
+    <h3>Trace <span class="badge spice">Beta</span></h3>
+    <p>Every piece of work is a tree of spans — the triggering event, each LLM turn, every tool call,
+    any sub-agents — with timing, tokens, and status. Click a span to see exactly what was sent to the
+    model: the system prompt, your input, the tools, skills and deferred tools it had, the full
+    conversation, and the output. <em>Why did this todo appear? Why was that run slow?</em> Follow the
+    chain and see.</p>
+    <figure class="media">
+      <div class="frame"><img src="assets/trace.png" alt="A trace opened: an agent run expanded into spans, with a tool call's input and output" loading="lazy"></div>
+      <figcaption><span class="tag">Screenshot</span>A trace opened — the run expands into spans (searches, fetches, the assistant turn); click any one to see its exact input and output.</figcaption>
+    </figure>
+    <h3>Usage <span class="badge spice">Beta</span></h3>
+    <p>A durable, never-pruned ledger of every AI call — totals and breakdowns by <strong>model,
+    assistant, surface, and day</strong>, with tokens (including cache reads and writes) and estimated
+    cost, over 7 / 30 / 90 days or all time. What each assistant costs you per week is one tab away —
+    the same figure that shows on their card in the Team roster.</p>
+  </div>
+</section>
+
+<section id="settings">
+  <p class="kicker">Under the hood</p>
+  <h2>Settings</h2>
+  <div class="measure">
+    <h3>AI providers</h3>
+    <div class="tablewrap"><table>
+      <thead><tr><th>Provider</th><th>How it connects</th></tr></thead>
+      <tbody>
+      <tr><td>Anthropic · OpenAI · Google Gemini</td><td>API key</td></tr>
+      <tr><td>Groq · Together · OpenRouter · DeepSeek · Mistral · xAI · Perplexity</td><td>API key</td></tr>
+      <tr><td>GitHub Copilot</td><td>Device-code sign-in — uses your Copilot subscription</td></tr>
+      <tr><td>OpenAI Codex</td><td>Browser sign-in — uses your ChatGPT/Codex subscription</td></tr>
+      <tr><td>Ollama</td><td>Local host — no key, fully offline</td></tr>
+      <tr><td><strong>Anything else</strong></td><td>Paste any OpenAI-compatible base URL as a custom provider</td></tr>
+      </tbody>
+    </table></div>
+    <p>Pick the active provider and default model — model lists are fetched live from the provider, and
+    your key is <strong>checked when you connect</strong>, so a wrong key is refused on the spot instead
+    of failing later mid-run. Assistants can override the provider and model; chats can override the
+    model per-conversation.</p>
+    <p>Each provider can also map four optional <strong>effort tiers</strong> — Less, Medium, Heavy,
+    Smart — to different models, so routine work runs cheap and hard work runs on something stronger.</p>
+    <h3>General</h3>
+    <p>Turn on <strong>Verbose activity</strong> to show every tool call and sub-agent in chat rather than
+    just thinking, control <strong>desktop notifications</strong>, and browse the full list of
+    <strong>keyboard shortcuts</strong>. A system-info panel shows your version, engine, data directory,
+    and the backend URL the app is talking to.</p>
+    <h3>Recording</h3>
+    <p>Choose a Whisper model size (tiny → large-v3 — bigger is more accurate, slower to download),
+    a default language (12 built in, plus auto-detect), and a custom <strong>vocabulary</strong> of names
+    and jargon the transcriber should recognize. Apple Silicon uses a fast native backend; everything
+    else falls back to a cross-platform one automatically.</p>
+    <h3>Wake word</h3>
+    <p>Switch on the app-wide voice assistant, choose the phrase and how sensitive it is, and decide
+    whether answers are spoken or silent, which voice reads them, and how long the answer panel stays up.
+    You can also <strong>keep listening after each answer</strong> for back-to-back questions, tune the
+    silence gap before your turn is sent, and pick whether work it wants to queue is confirmed out loud or
+    just queued. Changes apply immediately. Off by default — the detection models are a small download first.</p>
+    <h3>Meeting templates</h3>
+    <p>Build and manage the templates that decide what a finished recording produces — and, optionally,
+    what the live copilot watches for while you're still talking.</p>
+    <h3>Identity</h3>
+    <p>Tell your assistants who they work for — name, what you do, how you like them to behave, working
+    hours. Every assistant gets this context, so outputs fit you without repeating yourself.</p>
+    <h3>Appearance &amp; security</h3>
+    <p>Light, dark, or follow the system, plus a theme picker — the whole UI is token-driven, tiles
+    included. The app locks behind your <strong>PIN</strong> (lock any time from the sidebar), and the only
+    network calls are to the AI provider you chose and any MCP servers you added.</p>
+    <figure class="media">
+      <div class="frame"><img src="assets/theme.png" alt="Settings theme picker with System, Paper, Sepia, Default, Dark, Midnight, Mono, and Noir" loading="lazy"></div>
+      <figcaption><span class="tag">Screenshot</span>The theme picker in Settings — eight looks from Paper to Noir, applied instantly and remembered.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<section id="backup">
+  <p class="kicker">Under the hood</p>
+  <h2>Backup &amp; export</h2>
+  <div class="measure">
+    <p>"Your data is plain files you own" only means something if you can pick them up and walk. So:
+    <strong>Export</strong> gives you everything as a single zip, and <strong>Restore</strong> takes that
+    zip back — on this machine or a new one.</p>
+    <p>Settings → Backup &amp; data also shows where your files actually live and what's taking up the
+    space, broken down by category.</p>
+    <ul>
+      <li><strong>Model weights and the live job queue are left out</strong> of the backup — weights just
+      re-download, and a half-finished queue isn't something you want to carry to another machine. Both
+      are preserved as-is when you restore, so nothing in flight gets clobbered.</li>
+      <li><strong>A zip that isn't a Curry Leaves backup is rejected</strong> before anything is touched.
+      Restore checks first, then acts.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="faq">
+  <p class="kicker">Under the hood</p>
+  <h2>FAQ &amp; troubleshooting</h2>
+  <div class="measure">
+    <details><summary>Is my audio sent to the cloud?</summary><div class="body">No. Three things run entirely on your machine: <strong>transcription</strong> (Whisper), <strong>search by meaning</strong> (a small embedding model), and the <strong>voice that speaks back</strong> (Kokoro). Only the <em>text</em> your assistants work on goes to your chosen AI provider — and with Ollama, even that stays local.</div></details>
+    <details><summary>Where exactly is my data?</summary><div class="body"><code>~/.curry-leaves</code> — settings, assistants, recordings (audio + transcripts), <code>memory/</code> (your notes and everything remembered, as markdown), <code>skills/</code>, <code>templates/</code>, <code>artifacts/</code>, <code>models/</code>, chat sessions, events, run history. All plain markdown and JSON. In Docker, the same layout lives in the <code>curry-leaves-data</code> volume.</div></details>
+    <details><summary>Can I edit things outside the app?</summary><div class="body">Yes — that's the point. Assistants and notes are markdown, settings are JSON. Edit them with anything; the app picks up changes.</div></details>
+    <details><summary>The first transcription is slow</summary><div class="body">The Whisper model downloads once, on first use. You can pre-download models in Settings → Recording, or pick a smaller size.</div></details>
+    <details><summary>Search isn't finding things by meaning yet</summary><div class="body">The ~90 MB model that powers it downloads quietly in the background on first launch and switches on at your <strong>next</strong> start — this is deliberate, so you never wait on a download in front of a query. Until then search is keyword-only, and Memory shows a "keyword only" badge. It never leaves your machine; set <code>CURRY_LEAVES_VECTOR_SEARCH=0</code> to stay on keyword permanently.</div></details>
+    <details><summary>The wake word doesn't respond</summary><div class="body">Check Settings → Wake word: is it <strong>enabled</strong>, and are the models <strong>downloaded</strong>? The toggle won't work until they are. If it's on but ignores you, lower the <strong>sensitivity</strong>; if it wakes at random noise, raise it. It's also deliberately deaf while an answer panel is on screen — dismiss the last answer first. Speech output isn't required: turn <em>Speak the answer</em> off and you still get answers on screen.</div></details>
+    <details><summary>Why does my microphone indicator stay on?</summary><div class="body">Because the wake word is listening. Detecting the phrase happens entirely inside the app and no audio is sent anywhere, but the microphone genuinely is open while it's armed — that's what the dot in the sidebar is telling you. Turn the wake word off and the indicator goes out.</div></details>
+    <details><summary>Voice doesn't work / there's no Voice button</summary><div class="body">Speech synthesis needs the system <code>espeak-ng</code> binary — <code>brew install espeak-ng</code> on macOS, or your package manager elsewhere (it's already in the Docker image). If the backend can't load it, the Voice button is hidden rather than shown broken. Restart after installing.</div></details>
+    <details><summary>An assistant didn't run after my recording</summary><div class="body">Check the assistant is <strong>enabled</strong> with the right <strong>trigger</strong> (usually <em>recording.transcribed</em>), and check the recording's <strong>meeting template</strong> — the template decides what gets produced. The Trace screen shows exactly which assistants were triggered and what happened.</div></details>
+    <details><summary>Chat errors, or the provider returns nothing</summary><div class="body">Settings → AI providers: is it connected, is the key valid, is a model selected? Keys are validated when you connect, so a bad one usually fails there rather than here. The Usage screen confirms whether calls are going through.</div></details>
+    <details><summary>How do I back up, or move to a new machine?</summary><div class="body">Settings → Backup &amp; data → <strong>Export</strong> for a single zip of everything, then <strong>Restore</strong> it on the new machine. Model weights are excluded (they re-download) and the live job queue is left alone.</div></details>
+    <details><summary>How do I find something across everything?</summary><div class="body"><kbd>⌘K</kbd> (or Ctrl+K) searches notes, recordings, todos, reminders, artifacts and assistants at once. Type <code>&gt;</code> instead to run a command.</div></details>
+    <details><summary>I forgot my PIN</summary><div class="body">Delete the auth file inside <code>~/.curry-leaves</code> (it holds only the PIN hash and tokens) and restart — the next PIN you enter becomes the new passcode. Your data is untouched.</div></details>
+  </div>
+</section>
+
+<footer>
+  <span>Curry Leaves — local-first voice &amp; meeting assistant</span>
+  <span>Source: <code>docs/guide/</code></span>
+</footer>
+</main>
+
+<aside class="toc pending" id="toc" aria-label="Key topics">
+  <p class="toc-title">Key topics</p>
+  <div id="toc-links"></div>
+</aside>
+</div>
+
+<script>
+  // Add hover anchor links to every section heading.
+  (function () {
+    document.querySelectorAll('main section[id]').forEach(function (s) {
+      var h = s.querySelector('h2');
+      if (!h) return;
+      var a = document.createElement('a');
+      a.className = 'anchor'; a.href = '#' + s.id; a.setAttribute('aria-label', 'Link to section');
+      a.textContent = '#';
+      h.insertBefore(a, h.firstChild);
+    });
+  })();
+
+  // Scrollspy + right-hand "Key topics" keyword panel.
+  (function () {
+    var sideLinks = Array.prototype.slice.call(document.querySelectorAll('nav.side a'));
+    var sideById = {};
+    sideLinks.forEach(function (a) { sideById[a.getAttribute('href').slice(1)] = a; });
+
+    // Keywords surfaced per section — makes the right rail scannable, not a copy of the left nav.
+    var KEYWORDS = {
+      daily:     ['⌘R capture', 'auto todos', 'follow-up drafts', 'compounds'],
+      overview:  ['capture-once', 'on-device', 'files you own', 'traced'],
+      start:     ['pip', 'Docker', 'setup wizard', 'PIN', 'downloads'],
+      capture:   ['live transcript', 'templates', 'copilot', 'trim', 'attachments'],
+      ask:       ['streaming', 'tool cards', 'approvals', '@-mentions', 'voice', 'Hey Curry'],
+      tasks:     ['todos', 'reminders', 'the pool', 'Lead', 'auto-triage'],
+      dashboard: ['tiles', 'formats', 'schedules', 'alerts', 'AI setup'],
+      knowledge: ['notes', '[[links]]', '11 blocks', 'search-by-meaning', 'graph', 'provenance', 'Gardener', 'skills'],
+      learning:  ['Memory Keeper', 'Skill Learner', 'Facts', 'Forget'],
+      artifacts: ['share link', 'revoke', 'editable'],
+      agents:    ['the List', 'Team', 'hiring', 'triggers', 'Tools', 'MCP'],
+      trace:     ['spans', 'tokens', 'usage', 'per-week cost'],
+      settings:  ['providers', 'effort tiers', 'recording', 'wake word', 'themes'],
+      backup:    ['export zip', 'restore', 'excludes weights'],
+      faq:       ['privacy', 'data location', 'troubleshooting']
+    };
+
+    var tocBox = document.getElementById('toc-links');
+    var tocById = {};
+    document.querySelectorAll('main section[id] h2').forEach(function (h) {
+      var id = h.closest('section').id;
+      var title = h.textContent.replace(/^#/, '').replace(/\s*(Beta|Coming soon)\s*$/i, '').trim();
+
+      var wrap = document.createElement('div');
+      wrap.className = 'topic';
+
+      var lbl = document.createElement('a');
+      lbl.className = 'lbl'; lbl.href = '#' + id; lbl.textContent = title;
+      wrap.appendChild(lbl);
+
+      var words = KEYWORDS[id];
+      if (words && words.length) {
+        var kw = document.createElement('div');
+        kw.className = 'kw';
+        words.forEach(function (w) {
+          var a = document.createElement('a');
+          a.href = '#' + id; a.textContent = w;
+          kw.appendChild(a);
+        });
+        wrap.appendChild(kw);
+      }
+
+      tocBox.appendChild(wrap);
+      tocById[id] = wrap;
+    });
+
+    var tocAside = document.getElementById('toc');
+    var firstTopicId = Object.keys(tocById)[0];
+    var obs = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) {
+        if (!e.isIntersecting) return;
+        // Left nav mirrors whatever section is in view.
+        sideLinks.forEach(function (a) { a.classList.remove('on'); });
+        if (sideById[e.target.id]) sideById[e.target.id].classList.add('on');
+
+        // Right panel shows the current section's keywords; sections without their own
+        // topic (e.g. the #home lead) fall back to the first real topic so it never blanks.
+        var topicId = tocById[e.target.id] ? e.target.id : firstTopicId;
+        Object.keys(tocById).forEach(function (k) { tocById[k].classList.remove('on'); });
+        if (tocById[topicId]) tocById[topicId].classList.add('on');
+        if (tocAside) tocAside.classList.remove('pending');
+      });
+    }, { rootMargin: '-15% 0px -70% 0px' });
+    document.querySelectorAll('main section').forEach(function (s) { obs.observe(s); });
+  })();
+
+  // Mobile drawer for the left nav.
+  (function () {
+    var btn = document.getElementById('menu-btn');
+    var side = document.getElementById('side');
+    var scrim = document.getElementById('drawer-scrim');
+    function close() { side.classList.remove('open'); scrim.classList.remove('show'); btn.setAttribute('aria-expanded', 'false'); }
+    function open() { side.classList.add('open'); scrim.classList.add('show'); btn.setAttribute('aria-expanded', 'true'); }
+    btn.addEventListener('click', function () { side.classList.contains('open') ? close() : open(); });
+    scrim.addEventListener('click', close);
+    side.addEventListener('click', function (e) { if (e.target.tagName === 'A') close(); });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') close(); });
+  })();
+
+  // Version dropdown: toggle on click, close on outside-click / Escape.
+  (function () {
+    var pick = document.getElementById('verpick');
+    if (!pick) return;
+    var btn = document.getElementById('verbtn');
+    function close() { pick.classList.remove('open'); btn.setAttribute('aria-expanded', 'false'); }
+    function toggle() {
+      var isOpen = pick.classList.toggle('open');
+      btn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+    }
+    btn.addEventListener('click', function (e) { e.stopPropagation(); toggle(); });
+    document.addEventListener('click', function (e) { if (!pick.contains(e.target)) close(); });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') close(); });
+    pick.querySelectorAll('.vermenu a').forEach(function (a) { a.addEventListener('click', close); });
+  })();
+
+  // Theme toggle: light / dark / system, persisted, mirrors data-theme onto <html>.
+  (function () {
+    var root = document.documentElement;
+    var KEY = 'curry-leaves-docs-theme';
+    function apply(mode) {
+      if (mode === 'system') root.removeAttribute('data-theme');
+      else root.setAttribute('data-theme', mode);
+      document.querySelectorAll('[data-theme-btn]').forEach(function (b) {
+        b.classList.toggle('on', b.getAttribute('data-theme-btn') === mode);
+      });
+    }
+    var saved = localStorage.getItem(KEY) || 'system';
+    apply(saved);
+    document.querySelectorAll('[data-theme-btn]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var mode = b.getAttribute('data-theme-btn');
+        localStorage.setItem(KEY, mode);
+        apply(mode);
+      });
+    });
+  })();
+</script>
+</body>
+</html>

@@ -1,0 +1,86 @@
+name: 🐛 Bug report
+description: Something isn't working as expected. A minimal reproduction is the fastest path to a fix.
+title: "bug: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug! Please search [existing issues](https://github.com/Curry-Leaves/curry-leaves-assistant/issues)
+        first, and upgrade to the latest release to confirm it still reproduces.
+
+        ⚠️ **Not a security report.** For vulnerabilities, do not open an issue — see [SECURITY.md](https://github.com/Curry-Leaves/curry-leaves-assistant/blob/main/SECURITY.md).
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: Preflight
+      options:
+        - label: I searched existing issues and this hasn't been reported.
+          required: true
+        - label: I'm on the latest release of `curry-leaves-assistant` and it still reproduces.
+          required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, and what actually happened.
+      placeholder: I clicked … and expected … but instead ….
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: The exact steps, CLI command, or minimal reproduction.
+      placeholder: |
+        1. Start with `./start.sh`
+        2. Go to the … screen
+        3. Do …
+        4. See the error
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / error output
+      description: Relevant `backend.log` output and the full error/stack trace. **Scrub secrets** (API keys, PINs, tokens).
+      render: shell
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Output of `curry-leaves-assistant --version` (or the installed package version).
+      placeholder: "1.1.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: install-method
+    attributes:
+      label: How did you install it?
+      options:
+        - pip (PyPI)
+        - Docker
+        - From source
+        - Electron desktop app
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: OS
+      description: OS and version.
+      placeholder: "macOS 15.5 (Apple Silicon) / Ubuntu 24.04 / Windows 11"
+    validations:
+      required: true
+  - type: input
+    id: provider
+    attributes:
+      label: AI provider & model
+      description: Which provider and model id were configured.
+      placeholder: "Anthropic / claude-sonnet-5, or Copilot, Ollama, OpenAI-compatible …"
+  - type: input
+    id: python
+    attributes:
+      label: Python version
+      description: Output of `python --version` (skip if you used Docker).
+      placeholder: "3.12.4"

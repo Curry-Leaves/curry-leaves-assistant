@@ -1,0 +1,27 @@
+# Run Curry Leaves in Docker — no local Python/Node install needed. Everything (including the
+# curry-leaves kernel) is pulled from PyPI at build time, so no sibling checkouts are required.
+#
+# Usage (from this directory):
+#   cp src/curry_leaves_assistant/.env.docker.example .env   # first time only — add your API key
+#   docker compose up --build
+# Then open http://localhost:5177
+services:
+  curry-leaves:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "5177:5177"
+      # Codex (ChatGPT-subscription) OAuth redirects the browser to
+      # http://localhost:1455/auth/callback — publish it so the loopback
+      # callback server inside the container is reachable from your browser.
+      - "1455:1455"
+    volumes:
+      - curry-leaves-data:/data
+    env_file:
+      - path: .env
+        required: false
+    restart: unless-stopped
+
+volumes:
+  curry-leaves-data:
