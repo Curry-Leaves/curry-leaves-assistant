@@ -14,7 +14,7 @@
 # static dist/ to npm. We don't build it here — just unpack the pinned version.
 # Override with `--build-arg WEB_VERSION=x.y.z`.
 FROM node:20-slim AS frontend
-ARG WEB_VERSION=1.0.3
+ARG WEB_VERSION=1.1.0
 WORKDIR /app
 RUN npm pack "curry-leaves-assistant-web@${WEB_VERSION}" \
     && tar -xzf curry-leaves-assistant-web-*.tgz \
