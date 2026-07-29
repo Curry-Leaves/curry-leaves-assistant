@@ -8,6 +8,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **GitHub Copilot: model catalog + connection overrides.** The Copilot model picker now filters
+  to chat-selectable models (`model_picker_enabled`, excluding policy-disabled and
+  utility/embedding entries), matching what editors surface. The provider card also gained an
+  **Advanced** section with an optional **Client ID** override and a **custom Headers** editor
+  (one `Name: value` per line). By default Curry Leaves connects as its own registered OAuth app
+  with its own request identity (the GA model set, the same approach opencode uses); supplying a
+  client id and/or custom headers switches to GitHub's token-exchange path and can change which
+  models GitHub returns — the user's choice, on their own account, under GitHub's terms. New
+  settings keys `ai.providers.copilot.clientId` and `ai.providers.copilot.headers`; overridable
+  via env `CURRY_LEAVES_GITHUB_CLIENT_ID`.
+- **`scripts/check_copilot_models.py`.** A CLI diagnostic that probes the Copilot models endpoint
+  (default vs. token-exchange path) and reports what each returns — handy for troubleshooting an
+  empty or short model list.
+
+### Changed
+
+- **Web UI bumped to 1.2.0.** Rebuilt and re-bundled the `curry-leaves-assistant-web` frontend
+  (adds the Copilot Advanced client-id + headers fields). `build_webui.sh` and the Docker
+  `WEB_VERSION` build arg are pinned to 1.2.0.
+
 ## [1.2.0] - 2026-07-27
 
 ### Added
@@ -89,7 +111,8 @@ Initial public release.
   Node. Set `CURRY_LEAVES_WEB_DIR` to test a local web checkout; `CURRY_LEAVES_WEB_VERSION`
   pins the fetched version.
 
-[Unreleased]: https://github.com/Curry-Leaves/curry-leaves-assistant/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/Curry-Leaves/curry-leaves-assistant/compare/v1.3.0...HEAD
+[1.3.0]: https://github.com/Curry-Leaves/curry-leaves-assistant/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/Curry-Leaves/curry-leaves-assistant/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/Curry-Leaves/curry-leaves-assistant/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/Curry-Leaves/curry-leaves-assistant/releases/tag/v1.0.0

@@ -28,7 +28,13 @@ DEFAULTS = {
             "anthropic": {"apiKey": "", "model": "claude-sonnet-4-6", "tiers": dict(EMPTY_TIERS)},
             "openai": {"apiKey": "", "model": "gpt-4o", "tiers": dict(EMPTY_TIERS)},
             "google": {"apiKey": "", "model": "gemini-2.5-flash", "tiers": dict(EMPTY_TIERS)},
-            "copilot": {"model": "", "tiers": dict(EMPTY_TIERS)},
+            # clientId / headers: optional user overrides for the Copilot connection. "" / {} =
+            # our own registered app with the base request identity (GA models). A user can set a
+            # different clientId and/or supply custom request headers (e.g.
+            # {"Copilot-Integration-Id": "vscode-chat", "Editor-Version": "vscode/…"}) to reach a
+            # different catalog — their choice, on their account. Providing either switches on the
+            # token-exchange path. See providers/copilot_provider.is_overridden().
+            "copilot": {"model": "", "clientId": "", "headers": {}, "tiers": dict(EMPTY_TIERS)},
             "codex": {"model": "gpt-5-codex", "tiers": dict(EMPTY_TIERS)},
             "ollama": {"baseUrl": "", "model": "llama3.1", "tiers": dict(EMPTY_TIERS)},  # local; "" baseUrl = http://localhost:11434
         },

@@ -14,11 +14,9 @@ import httpx
 from curry_leaves_assistant.core import settings as app_settings
 
 from curry_leaves_assistant.providers.copilot_provider import (
-    CLIENT_ID, DEVICE_CODE_URL, ACCESS_TOKEN_URL,
-    _EDITOR_HEADERS, CopilotAuth, CopilotProvider,
+    client_id, DEVICE_CODE_URL, ACCESS_TOKEN_URL,
+    CopilotAuth, CopilotProvider,
 )
-
-MODELS_URL = "https://api.githubcopilot.com/models"
 
 
 # ─── token persistence (settings.json only — no separate file) ────────────────
@@ -43,7 +41,7 @@ def is_connected() -> bool:
 async def start_device_flow() -> dict:
     async with httpx.AsyncClient(timeout=30) as c:
         r = await c.post(DEVICE_CODE_URL, headers={"Accept": "application/json"},
-                         data={"client_id": CLIENT_ID, "scope": "read:user"})
+                         data={"client_id": client_id(), "scope": "read:user"})
         r.raise_for_status()
         d = r.json()
     return {
@@ -56,7 +54,7 @@ async def start_device_flow() -> dict:
 async def poll_device_flow(device_code: str) -> dict:
     async with httpx.AsyncClient(timeout=30) as c:
         r = await c.post(ACCESS_TOKEN_URL, headers={"Accept": "application/json"}, data={
-            "client_id": CLIENT_ID, "device_code": device_code,
+            "client_id": client_id(), "device_code": device_code,
             "grant_type": "urn:ietf:params:oauth:grant-type:device_code",
         })
         body = r.json()
@@ -79,13 +77,24 @@ async def poll_device_flow(device_code: str) -> dict:
 
 # ─── model catalog ────────────────────────────────────────────────────────────
 async def list_models() -> list[dict]:
+    """The Copilot models to show in the picker.
+
+    We query with whatever bearer + headers CopilotAuth resolves: by default the raw GitHub token
+    with the base headers (the GA catalog, like opencode); or, if the user set custom headers / a
+    client id, the exchanged session token with those headers (a fuller catalog). Then we keep only
+    models with ``model_picker_enabled`` whose ``policy.state`` isn't ``"disabled"`` — the
+    chat-selectable ones the account is entitled to — dropping the utility/embedding/experimental
+    entries the endpoint also returns (gpt-4o-mini, text-embedding-*, exec-agent-*, …), matching
+    what VS Code / opencode hide from their pickers."""
     token = load_github_token()
     if not token:
         return []
     try:
-        bearer = await CopilotAuth(github_token=token).bearer()
+        auth = CopilotAuth(github_token=token)
+        bearer = await auth.bearer()
+        base = await auth.api_base()
         async with httpx.AsyncClient(timeout=30) as c:
-            r = await c.get(MODELS_URL, headers={"Authorization": f"Bearer {bearer}", **_EDITOR_HEADERS})
+            r = await c.get(f"{base}/models", headers={"Authorization": f"Bearer {bearer}", **auth.headers()})
             r.raise_for_status()
             data = r.json()
     except Exception:
@@ -93,8 +102,14 @@ async def list_models() -> list[dict]:
     raw = data.get("data") if isinstance(data, dict) else data
     out, seen = [], set()
     for m in raw or []:
-        mid = m.get("id") if isinstance(m, dict) else str(m)
+        if not isinstance(m, dict):
+            continue
+        mid = m.get("id")
         if not mid or mid in seen:
+            continue
+        if not m.get("model_picker_enabled"):
+            continue
+        if (m.get("policy") or {}).get("state") == "disabled":
             continue
         seen.add(mid)
         out.append({"id": mid})
