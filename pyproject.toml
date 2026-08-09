@@ -62,7 +62,9 @@ Repository = "https://github.com/Curry-Leaves/curry-leaves-assistant"
 Issues = "https://github.com/Curry-Leaves/curry-leaves-assistant/issues"
 
 [project.scripts]
-curry-leaves-assistant = "curry_leaves_assistant.app:main"
+# cli:main, not app:main — `stop`/`status` must not pay app.py's ~5s import of FastAPI,
+# uvicorn and every router just to signal a pid. cli defers that to the `start` path.
+curry-leaves-assistant = "curry_leaves_assistant.cli:main"
 
 [build-system]
 requires = ["hatchling"]

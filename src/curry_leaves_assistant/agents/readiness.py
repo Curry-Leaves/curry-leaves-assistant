@@ -66,7 +66,9 @@ def ai_status() -> dict:
     """Snapshot of AI readiness: ``{ready, provider, model, reason}``.
 
     ``ready`` is True only when the user has explicitly connected a provider (chosen it as
-    the active default in Settings) AND that provider is usable AND a default model resolves.
+    the active default in Settings) AND that provider is usable AND still switched on AND a
+    default model resolves. ``reason`` is one of ``no_provider`` / ``provider_disabled`` /
+    ``no_model``.
 
     We deliberately do NOT auto-detect a provider from env vars here: a stray ``ANTHROPIC_API_KEY``
     in the environment must not make the app *look* connected when the user never set anything up.
@@ -82,7 +84,17 @@ def ai_status() -> dict:
         }
     api_key = app_settings.provider_cfg(name)[0]
     connected = _provider_connected(name, api_key)
+    enabled = app_settings.provider_enabled(name)
     model = agent_engine.default_model_id(name)
+    if not enabled:
+        # Connected but switched off. Its own reason rather than folding into no_provider:
+        # the fix is a toggle, not a credential, and saying "not connected" about a provider
+        # the user can see is connected reads as a bug.
+        return {
+            "ready": False, "provider": name, "model": model, "reason": "provider_disabled",
+            "detail": (f"The default AI provider '{name}' is turned off. Switch it back on in "
+                       "Settings → AI providers, or make a different provider the default."),
+        }
     if not connected:
         reason = "no_provider"
         detail = (f"No AI provider is connected. Add an API key or connect a provider "

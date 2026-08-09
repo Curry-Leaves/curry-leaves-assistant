@@ -104,6 +104,16 @@ pip install curry-leaves-assistant
 curry-leaves-assistant          # then open http://localhost:5177
 ```
 
+Run it from another terminal to check on it or shut it down:
+
+```bash
+curry-leaves-assistant status   # is it running, and as which pid?
+curry-leaves-assistant stop     # graceful shutdown (SIGKILL only if it overruns)
+```
+
+`stop` finds the server through `~/.curry-leaves/service.pid`, so it works whether the backend
+was started by this CLI or by the desktop app.
+
 On first launch a quick **setup wizard** adapts to how you'll use it — your name, language,
 transcription, optionally voice and knowledge, your AI provider, and a PIN.
 
@@ -144,8 +154,17 @@ UI into the package, and runs the backend, which serves the UI on its own port.
 
 The **web UI** lives in its own repo,
 [`curry-leaves-assistant-web`](../curry-leaves-assistant-web) — a standalone React app published
-to npm as a static bundle. This backend fetches and serves that bundle; to hack on the UI with
-hot reload, run `npm run dev` there against a running backend (see its README).
+to npm as a static bundle. This backend fetches and serves that bundle, so by default you're
+running the last *published* UI even if you have local UI edits. To run your own instead:
+
+```bash
+./start.sh local               # build the sibling web checkout from source, then serve that
+```
+
+`local` rebuilds the UI on every run, so a UI change just needs a restart. It looks for the web
+repo next to this one (override with `CURRY_LEAVES_WEB_DIR`) and fails rather than falling back
+to the published bundle, so you can't end up debugging a change that was never loaded. For hot
+reload instead, run `npm run dev` in the web repo against a running backend (see its README).
 
 The **Electron desktop app** lives in the sibling
 [`curry-leaves-assistant-desktop`](../curry-leaves-assistant-desktop) repo — it builds the same

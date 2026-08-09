@@ -13,11 +13,20 @@ router = APIRouter(tags=["providers"])
 
 @router.get("/providers/status")
 async def providers_status():
-    """Live connection status for OAuth/local providers (Copilot, Codex, Ollama)."""
+    """Live connection status for OAuth/local providers (Copilot, Codex, Ollama).
+
+    ``connected`` stays purely about the credential/server here — unlike Ollama, where being
+    switched off IS the disconnected state (a local server has no credential to clear). The
+    separate ``enabled`` flag carries the user's on/off choice for all three."""
     connected = copilot.is_connected()
     return {
-        "copilot": {"connected": connected, "models": await copilot.list_models() if connected else []},
-        "codex": {"connected": codex.is_connected(), "models": await codex.list_models()},
+        "copilot": {"connected": connected, "enabled": app_settings.provider_enabled("copilot"),
+                    "models": await copilot.list_models() if connected else []},
+        # ``configured`` = a client id is present. Codex ships no default one, so a false here
+        # means Connect cannot work until the user supplies one; the UI says so up front.
+        "codex": {"connected": codex.is_connected(), "enabled": app_settings.provider_enabled("codex"),
+                  "configured": codex.has_client_id(), "clientIdEnv": codex.CLIENT_ID_ENV,
+                  "models": await codex.list_models()},
         "ollama": await ollama.status(),
     }
 
@@ -31,20 +40,31 @@ async def providers_ai_status():
 
 
 def _spec_dto(spec) -> dict:
-    """A provider spec as the frontend needs it to render a card (no secrets)."""
+    """A provider spec as the frontend needs it to render a card (no secrets).
+
+    ``connected`` and ``enabled`` are computed server-side on purpose: connectedness used to be
+    re-derived in three places in the UI (settings cards, setup wizard, agent form), which is
+    exactly how they drifted. One answer, from the same helpers a real run consults."""
+    api_key = app_settings.provider_cfg(spec.id)[0]
     return {
         "id": spec.id, "name": spec.name, "wire": spec.wire, "keyed": spec.keyed,
         "custom": spec.custom, "tiers": spec.tiers, "hint": spec.hint,
         "keyPlaceholder": spec.key_placeholder, "defaultModel": spec.default_model,
         "baseUrl": spec.base_url,
+        "connected": readiness._provider_connected(spec.id, api_key),
+        "enabled": app_settings.provider_enabled(spec.id),
     }
 
 
 @router.get("/providers/catalog")
-async def providers_catalog():
+async def providers_catalog(usable: bool = False):
     """The set of provider cards to render: every built-in provider from the registry, plus
     any user-defined custom (OpenAI-compatible) providers saved in settings. The frontend
-    builds its UI entirely from this — no hardcoded provider list."""
+    builds its UI entirely from this — no hardcoded provider list.
+
+    ``usable=true`` narrows it to providers that are connected AND enabled — what the agent
+    and chat model pickers offer. Settings deliberately asks for the full list instead, since
+    a disabled provider has to stay visible to be switched back on."""
     from curry_leaves_assistant.providers import registry
     builtins = [_spec_dto(s) for s in registry.builtin_specs()]
     saved = app_settings.read_settings()["ai"]["providers"]
@@ -53,7 +73,10 @@ async def providers_catalog():
         for pid, cfg in saved.items()
         if isinstance(cfg, dict) and cfg.get("custom") and not registry.is_builtin(pid)
     ]
-    return {"providers": builtins + customs}
+    out = builtins + customs
+    if usable:
+        out = [p for p in out if p["connected"] and p["enabled"]]
+    return {"providers": out}
 
 
 def _filter_ids(ids: set[str], prefixes: tuple) -> list[str]:
@@ -134,6 +157,10 @@ async def provider_models(provider: str | None = None):
         name = app_settings.active_ai()[0] or ""
         if not name:
             return {"active": "", "default_model": "", "models": []}
+    # A disabled provider offers nothing: agents can't run on it, so a picker must not be able
+    # to select one of its models. Same empty-catalog shape as the no-active-provider case.
+    if not app_settings.provider_enabled(name):
+        return {"active": name, "default_model": "", "models": []}
     if name == "copilot":
         return _catalog_response(name, await copilot.list_models())
     if name == "codex":
@@ -186,12 +213,14 @@ async def copilot_poll(request: Request):
     body = await request.json()
     result = await copilot.poll_device_flow(body.get("device_code", ""))
     if result.get("status") == "connected":
-        # Make Copilot active and default to the first model if none chosen.
+        # Make Copilot active and default to the first model if none chosen. Connecting also
+        # re-enables it: a user who switched Copilot off and then deliberately reconnected
+        # means to use it, and would otherwise land on a connected-but-off card.
         models = result.get("models") or []
-        patch = {"active": "copilot"}
+        cfg: dict = {"enabled": True}
         if models:
-            patch["providers"] = {"copilot": {"model": models[0]["id"]}}
-        app_settings.patch_ai(patch)
+            cfg["model"] = models[0]["id"]
+        app_settings.patch_ai({"active": "copilot", "providers": {"copilot": cfg}})
         readiness.emit_ai_status()
     return result
 
@@ -215,12 +244,13 @@ async def codex_poll(request: Request):
     body = await request.json()
     result = await codex.poll_login(body.get("state", ""))
     if result.get("status") == "connected":
-        # Make Codex active and default to the first model if none chosen.
+        # Make Codex active and default to the first model if none chosen. Connecting also
+        # re-enables it — see the Copilot poll above for why.
         models = result.get("models") or []
-        patch = {"active": "codex"}
+        cfg: dict = {"enabled": True}
         if models:
-            patch["providers"] = {"codex": {"model": models[0]["id"]}}
-        app_settings.patch_ai(patch)
+            cfg["model"] = models[0]["id"]
+        app_settings.patch_ai({"active": "codex", "providers": {"codex": cfg}})
         readiness.emit_ai_status()
     return result
 

@@ -179,8 +179,11 @@ async def _handle(conn: Connection, audio: dict, tts_streams: dict, msg: dict) -
         _tts_stop(tts_streams, msg.get("streamId"))
     elif t == "live.attach":
         # Attach the live-context engine to an open stream once the recordingId is known
-        # (it can arrive after audio.start). Idempotent.
-        _live_attach(conn, audio, msg.get("streamId"), msg.get("recordingId"))
+        # (it can arrive after audio.start). Idempotent. An optional `enabled` bool is the
+        # Capture toggle's per-recording override of the app-level live.enabled setting;
+        # omitting it (or null) leaves this recording following the setting.
+        _live_attach(conn, audio, msg.get("streamId"), msg.get("recordingId"),
+                     msg.get("enabled"))
     elif t == "live.signal":
         # A high-signal cue from the UI (attendee added, note typed) → run the live engine now.
         _live_signal(audio, msg.get("streamId"), msg.get("hint") or "")
@@ -405,8 +408,8 @@ def _audio_start(conn: Connection, audio: dict, stream_id: str | None,
                  recording_id: str | None = None, kind: str | None = None) -> None:
     """Begin a live audio stream. Assigns a slot (the 1-byte prefix the client stamps on
     each binary frame) and replies with it. A meeting stream (kind != 'dictation') that
-    carries a recordingId gets a live_context session so the in-meeting engine can run;
-    dictation streams never do."""
+    carries a recordingId gets a live_context session so the in-meeting engine can run (subject
+    to the live.enabled setting, re-checked per pass); dictation streams never do."""
     if not stream_id:
         return
     slot = next((i for i in range(256) if i not in audio), None)
@@ -422,24 +425,40 @@ def _audio_start(conn: Connection, audio: dict, stream_id: str | None,
     hub.send_to(conn, {"type": "audio.ready", "streamId": stream_id, "slot": slot})
 
 
-def _engage_live(st: "_AudioStream", conn: Connection, stream_id: str, recording_id: str) -> None:
-    """Create + attach a live-context session to a stream (idempotent). Skips templates whose
-    live.watch is empty (session.engaged() is False)."""
+def _engage_live(st: "_AudioStream", conn: Connection, stream_id: str, recording_id: str,
+                 enabled: bool | None = None) -> None:
+    """Create + attach a live-context session to a stream (idempotent).
+
+    The session is attached whenever the template opts in (live.watch non-empty), even if the
+    copilot is currently switched off — the OFF state lives on the session as an override the
+    Capture toggle can flip mid-recording, so the engine must already be there to receive it.
+    Every pass re-checks ``session.enabled()``, so an attached-but-disabled session costs
+    nothing but the transcript it accumulates.
+
+    ``enabled`` is the per-recording override from the Capture toggle; None = follow the app
+    setting. On an already-attached session it updates the override in place rather than
+    rebuilding, so the agent keeps its conversation history across a toggle.
+    """
     if st.live is not None:
+        if enabled is not None:
+            st.live.set_enabled(enabled)
         return
     from curry_leaves_assistant.orchestration import live_context
-    session = live_context._Session(conn, stream_id, recording_id, hub.send_to)
-    if session.engaged():
+    session = live_context._Session(conn, stream_id, recording_id, hub.send_to, enabled=enabled)
+    if session._watch_kinds():
         st.live = session
 
 
-def _live_attach(conn: Connection, audio: dict, stream_id: str | None, recording_id: str | None) -> None:
-    """Attach the live engine to an already-open stream once the recordingId is known."""
+def _live_attach(conn: Connection, audio: dict, stream_id: str | None, recording_id: str | None,
+                 enabled: bool | None = None) -> None:
+    """Attach the live engine to an already-open stream once the recordingId is known. Also the
+    channel the Capture copilot toggle uses — re-sending attach with ``enabled`` set applies a
+    per-recording override to the live session."""
     if not stream_id or not recording_id:
         return
     for st in audio.values():
         if st.stream_id == stream_id:
-            _engage_live(st, conn, stream_id, recording_id)
+            _engage_live(st, conn, stream_id, recording_id, enabled)
             return
 
 

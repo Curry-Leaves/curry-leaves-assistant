@@ -10,9 +10,12 @@ swap in its client id. Below are the steps, matched to how each flow works — *
 caveat for each**, because branding the page and keeping model access working are two different
 things.
 
-Both client ids are already **env-overridable — you do not need to edit code.** Copilot uses
-Curry Leaves' own registered GitHub OAuth App by default; Codex uses OpenAI's own Codex CLI
-client. Each has a dedicated environment variable that overrides it.
+Both client ids are read from the environment — **you do not need to edit code.** Copilot uses
+Curry Leaves' own registered GitHub OAuth App by default, overridable via settings or env.
+**Codex ships no default client id at all**: `CURRY_LEAVES_CODEX_CLIENT_ID` must be set to your
+own registered OpenAI OAuth integration, or Codex sign-in is unavailable and the Providers screen
+says so. Given the caveat below — the ChatGPT-subscription backend is gated to OpenAI's own
+client — most people should use the **OpenAI API-key provider** instead of Codex.
 
 Note that Copilot **already ships a Curry-Leaves-branded client id** — the registration this
 document describes was done. Copilot API access additionally depends on editor-identity headers
@@ -71,8 +74,8 @@ the code for tokens.
 ### Register your own OpenAI OAuth client
 1. Codex uses ChatGPT/OpenAI's OAuth, which is **not a self-serve developer registration** like
    GitHub's — OpenAI does not currently offer a public console to create an OAuth app against
-   their auth server with an arbitrary redirect URI. The default Codex client is OpenAI's own
-   Codex CLI.
+   their auth server with an arbitrary redirect URI. Curry Leaves ships **no** default Codex
+   client id, so this registration is a prerequisite, not an override.
 2. If you have an OpenAI **platform** account, the closest self-serve options are:
    - **API key** (already supported here as the OpenAI provider) — no OAuth, no consent page,
      and it bills your API account. This is the clean "your own identity" path.
@@ -92,7 +95,12 @@ API-key provider** instead of Codex.
 ## Using your own client id (already supported)
 
 Both client ids read from the environment, so dropping in your own app needs **no code change**
-— just set the provider's client-id environment variable before launching.
+— just set the provider's client-id environment variable before launching:
+
+| Provider | Variable | Default if unset |
+|---|---|---|
+| Copilot | `CURRY_LEAVES_GITHUB_CLIENT_ID` (or settings `ai.providers.copilot.clientId`) | Curry Leaves' own GitHub OAuth App |
+| Codex | `CURRY_LEAVES_CODEX_CLIENT_ID` | **None — Codex sign-in is disabled until you set it** |
 
 Auth wiring is set up at boot, so this needs a **full restart** — hot reload won't pick it up.
 
@@ -103,7 +111,7 @@ Auth wiring is set up at boot, so this needs a **full restart** — hot reload w
 | Provider | Can brand consent page? | Keeps subscription access? | Recommendation |
 |---|---|---|---|
 | **Copilot** | **Yes — already done.** Ships a Curry-Leaves GitHub OAuth App id | Yes — the raw GitHub token is stored and exchanged lazily, sidestepping the first-party-gated exchange endpoint | Nothing to do; override via env if you want your own |
-| **Codex** | No self-serve path against OpenAI's auth server | No — gated to OpenAI's own client | Use the **OpenAI API-key** provider for first-party branding |
+| **Codex** | No self-serve path against OpenAI's auth server | No — gated to OpenAI's own client | Ships no client id; set `CURRY_LEAVES_CODEX_CLIENT_ID` or use the **OpenAI API-key** provider |
 
 The genuinely brandable, "your own identity" providers are the **keyed** ones — Anthropic,
 OpenAI, Google, Groq, Together, OpenRouter, DeepSeek, Mistral, xAI, Perplexity, and any custom

@@ -42,6 +42,21 @@ DEFAULTS = {
     "appearance": {
         "theme": "system",  # system | paper | sepia | dark | midnight | mono | noir
     },
+    # In-meeting Live Copilot (orchestration/live_context.py). Default OFF: every pass is a real
+    # agent run against the user's provider, so an always-on copilot silently spends tokens on
+    # every recording. The user opts in here, and can override it per recording from Capture.
+    "live": {
+        "enabled": False,
+        # Transcript growth (characters) before a passive pass. Higher = fewer, chunkier passes.
+        "minNewChars": 120,
+        # Minimum seconds between passes. Signals (attendee added, note typed) and the manual
+        # refresh button bypass this.
+        "cooldownSeconds": 20,
+        # Hard per-recording pass budget — the backstop that caps what one long meeting can cost.
+        "maxPasses": 100,
+        # Cards the agent may surface per pass.
+        "maxCardsPerPass": 2,
+    },
     "recording": {
         "backend": "mlx-whisper",  # "mlx-whisper" | "faster-whisper" (see transcribe.REGISTRIES)
         "model": "small",          # model size within the active backend's registry
@@ -102,6 +117,7 @@ def read_settings() -> dict:
     out["appearance"] = {**DEFAULTS["appearance"], **(s.get("appearance") or {})}
     out["recording"] = {**DEFAULTS["recording"], **(s.get("recording") or {})}
     out["wakeword"] = {**DEFAULTS["wakeword"], **(s.get("wakeword") or {})}
+    out["live"] = {**DEFAULTS["live"], **(s.get("live") or {})}
     out["identity"] = {**DEFAULTS["identity"], **(s.get("identity") or {})}
     out["permissions"] = {**DEFAULTS["permissions"], **(s.get("permissions") or {})}
     return out
@@ -154,6 +170,29 @@ def patch_wakeword(patch: dict) -> dict:
 
 def wakeword_cfg() -> dict:
     return read_settings()["wakeword"]
+
+
+def patch_live(patch: dict) -> dict:
+    """Merge a Live Copilot patch: {enabled?, minNewChars?, cooldownSeconds?, maxPasses?,
+    maxCardsPerPass?}. The numeric keys are clamped to sane floors so a hand-edited settings.json
+    (or a 0 from the UI) can't turn the pass gating off entirely and run the agent on every
+    transcript chunk."""
+    _FLOORS = {"minNewChars": 20, "cooldownSeconds": 5, "maxPasses": 1, "maxCardsPerPass": 1}
+    s = read_settings()
+    if "enabled" in patch:
+        s["live"]["enabled"] = bool(patch["enabled"])
+    for k, floor in _FLOORS.items():
+        if k in patch:
+            try:
+                s["live"][k] = max(floor, int(patch[k]))
+            except (TypeError, ValueError):
+                pass  # ignore a non-numeric value rather than corrupting the block
+    write_json(SETTINGS_PATH, s)
+    return s
+
+
+def live_cfg() -> dict:
+    return read_settings()["live"]
 
 
 def patch_identity(patch: dict) -> dict:
@@ -219,3 +258,18 @@ def provider_cfg(name: str) -> tuple[str, str]:
     providers = read_settings()["ai"].get("providers", {})
     cfg = providers.get(name, {})
     return cfg.get("apiKey", ""), cfg.get("model", "")
+
+
+def provider_enabled(name: str) -> bool:
+    """Whether the user has left this provider switched on.
+
+    Distinct from *connected*: a provider can hold a valid key (or a live OAuth/local
+    connection) and still be disabled, which is the point — it lets the user park a provider
+    without tearing down its credentials. Disabled providers are excluded from the pickers and
+    refused at run time (see agent_engine.build_runner).
+
+    Default True when the key is absent: most providers have no saved cfg at all until their
+    first write, and existing installs predate this flag — neither must go dark on upgrade.
+    """
+    cfg = read_settings()["ai"].get("providers", {}).get(name, {})
+    return cfg.get("enabled", True) is not False

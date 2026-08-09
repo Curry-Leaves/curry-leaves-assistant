@@ -50,7 +50,7 @@ from curry_leaves.catalog import load_catalog
 import curry_leaves_assistant.api as api
 from curry_leaves_assistant.agents import readiness
 import curry_leaves_assistant.orchestration as orchestration
-from curry_leaves_assistant.core import auth, events, paths, ws_hub
+from curry_leaves_assistant.core import auth, events, paths, service, ws_hub
 from curry_leaves_assistant.domain import knowledge, recordings
 from curry_leaves_assistant.stores import agent_store, dashboard_store, skills_store, templates_store
 
@@ -133,6 +133,10 @@ async def lifespan(app: FastAPI):
     warm_task = asyncio.create_task(_warm_tts())
     embed_task = asyncio.create_task(_warm_embeddings())
 
+    # Record the pid so `curry-leaves-assistant stop` can find us. Written here rather than
+    # in main() so it only exists once the app is actually up, and is cleared below on exit.
+    service.write_pid()
+
     print(f"CURRY_LEAVES_LISTENING {HOST}:{PORT}", flush=True)  # readiness signal for Electron
     try:
         yield
@@ -140,6 +144,7 @@ async def lifespan(app: FastAPI):
         warm_task.cancel()  # a download still in flight shouldn't hold up shutdown
         embed_task.cancel()
         await orchestration.stop()  # scheduler tick down, then drain the worker fleet
+        service.clear_pid()
 
 
 app = FastAPI(lifespan=lifespan)
@@ -187,8 +192,8 @@ if _STATIC_DIR.is_dir():
     app.mount("/", _SPAStaticFiles(directory=str(_STATIC_DIR), html=True), name="frontend")
 
 
-def main() -> None:
-    """Console-script entrypoint (`curry-leaves-assistant`) and `python app.py`."""
+def serve() -> None:
+    """Boot the HTTP server. The `start` command, and what `python app.py` does."""
     global PORT
     if not PORT:
         if _port_available(DEFAULT_PORT):
@@ -201,6 +206,16 @@ def main() -> None:
 
     server_info.set_base_url(HOST, PORT)
     uvicorn.run(app, host=HOST, port=PORT, log_level="warning")
+
+
+def main(argv: list[str] | None = None) -> None:
+    """Back-compat entrypoint. The console script now points at cli:main, but this name
+    is load-bearing: the Electron shell spawns `python -m curry_leaves_assistant.app`,
+    and older installs' scripts still reference `app:main`. Delegates so both get the
+    same subcommands."""
+    from curry_leaves_assistant.cli import main as cli_main
+
+    cli_main(argv)
 
 
 if __name__ == "__main__":

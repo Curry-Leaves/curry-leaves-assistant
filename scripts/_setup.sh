@@ -69,12 +69,53 @@ EOF
 # unpacks its published dist/ here. Idempotent: skips the fetch if webui/ already exists. To
 # force a refresh (e.g. after bumping CURRY_LEAVES_WEB_VERSION), delete src/.../webui/ first.
 # Point CURRY_LEAVES_WEB_DIR at a local web checkout with a built dist/ to use that instead.
+#
+# Pass "local" to build the sibling web checkout from source and use THAT instead of the
+# pinned published version — see cl_build_local_webui. Deliberately opt-in: the default path
+# must stay a published-version fetch, or a release would silently bundle whatever happened to
+# be in someone's working tree.
 cl_setup_webui() {
+  if [ "${1:-}" = "local" ]; then
+    cl_build_local_webui
+    return $?
+  fi
   if [ -d "$PKGDIR/webui" ] && [ -n "$(ls -A "$PKGDIR/webui" 2>/dev/null)" ]; then
     return 0
   fi
   echo "▸ fetching web UI…"
   "$ROOT/scripts/build_webui.sh"
+}
+
+# Build the sibling web repo from source and bundle THAT into the package, replacing whatever
+# webui/ holds. Unconditional (no "already there" short-circuit) — the whole point is to pick
+# up local UI edits, and skipping the rebuild would serve a stale bundle while looking like it
+# worked, which is the failure mode this exists to avoid.
+#
+# The checkout is $CURRY_LEAVES_WEB_DIR if set, else the documented sibling layout
+# (../curry-leaves-assistant-web). Fatal on a missing checkout or a failed build, rather than
+# falling back to the published UI: silently serving a different UI than the one asked for
+# would send you debugging a change that was never actually loaded.
+cl_build_local_webui() {
+  local web_dir="${CURRY_LEAVES_WEB_DIR:-$ROOT/../curry-leaves-assistant-web}"
+  if [ ! -d "$web_dir" ]; then
+    echo "✗ No web checkout at $web_dir." >&2
+    echo "  Clone curry-leaves-assistant-web next to this repo, or set CURRY_LEAVES_WEB_DIR." >&2
+    return 1
+  fi
+  web_dir="$(cd "$web_dir" && pwd)"   # absolute, so build_webui.sh's cp resolves it
+  if ! command -v npm >/dev/null 2>&1; then
+    echo "✗ npm not found — needed to build the web UI from source. Install Node.js." >&2
+    return 1
+  fi
+  echo "▸ building web UI from source: $web_dir"
+  # `npm install` on every run: cheap when node_modules is current, and the alternative is a
+  # confusing build failure whenever package.json moved since the last local build.
+  ( cd "$web_dir" && npm install --silent && npm run build ) || {
+    echo "✗ web UI build failed in $web_dir" >&2
+    return 1
+  }
+  # build_webui.sh removes webui/ first, so the stale bundle can't survive this.
+  CURRY_LEAVES_WEB_DIR="$web_dir" "$ROOT/scripts/build_webui.sh"
 }
 
 # Ensure the one system binary Curry Leaves can use: espeak-ng, which Kokoro TTS phonemizes

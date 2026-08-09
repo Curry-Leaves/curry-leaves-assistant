@@ -54,9 +54,12 @@ async def list_models() -> list[dict]:
 def is_enabled() -> bool:
     """Whether the user has kept Ollama enabled. A local server can't be "disconnected"
     the way a keyed provider can — it's simply up or down — so the Disconnect button flips
-    this flag instead. Default True: an existing/up server keeps working untouched."""
-    cfg = app_settings.read_settings()["ai"]["providers"].get("ollama", {})
-    return cfg.get("enabled", True) is not False
+    this flag instead. Default True: an existing/up server keeps working untouched.
+
+    Delegates to the shared per-provider flag (settings.provider_enabled), which Ollama's
+    Disconnect predates and which now backs the enable toggle on every provider — one reader
+    of the key, so the two can't disagree."""
+    return app_settings.provider_enabled("ollama")
 
 
 async def status() -> dict:

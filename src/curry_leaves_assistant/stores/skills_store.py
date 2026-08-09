@@ -95,9 +95,16 @@ def create_skill(name: str, description: str, body: str) -> None:
     d = _skill_dir(name)
     if d.exists():
         raise FileExistsError(name)
+    # Build the frontmatter with a real YAML dumper, NOT an f-string: a description
+    # like "Route KB files: pick the folder by topic" has a colon-space that raw
+    # interpolation writes unquoted, producing `description: Route KB files: ...`
+    # which then throws yaml.ScannerError ("mapping values are not allowed here")
+    # on every later read — poisoning _scoped_skills and crashing whole chat runs.
+    # render_frontmatter (yaml.safe_dump) quotes such values correctly.
+    from curry_leaves_assistant.stores.agent_store import render_frontmatter
     d.mkdir(parents=True)
-    front = f"---\nname: {name}\ndescription: {description}\n---\n\n"
-    (d / "SKILL.md").write_text(front + body.strip() + "\n", encoding="utf-8")
+    content = render_frontmatter({"name": name, "description": description}, body)
+    (d / "SKILL.md").write_text(content, encoding="utf-8")
 
 
 def delete_skill(name: str) -> bool:

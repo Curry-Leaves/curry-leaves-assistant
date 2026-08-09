@@ -47,11 +47,20 @@ def read_file(rel: str) -> str | None:
 # page you browse, and it already has its own home in the Facts tab. Everything hub-facing
 # therefore filters the memory subtree out.
 _MEMORY_PREFIX = "memory/"
+# Image attachments (see domain/knowledge_assets). Binary files, not notes: nothing in here has
+# frontmatter or takes part in the note graph, and the user never authors it directly — an image
+# gets there by being pasted INTO a note, and is read back through that note's `![](assets/…)`
+# link. Showing it as a browsable folder would put a page-shaped thing in the tree that opens to
+# nothing, so it's hidden for the same reason the memory scopes are.
+_ASSETS_PREFIX = "assets/"
 
 
 def _is_hub(rel: str) -> bool:
-    """True for a browsable knowledge note (i.e. not one of the memory scopes)."""
-    return not (rel == "memory" or rel.startswith(_MEMORY_PREFIX))
+    """True for a browsable knowledge note (i.e. not a memory scope or an attachment)."""
+    return not (
+        rel == "memory" or rel.startswith(_MEMORY_PREFIX)
+        or rel == "assets" or rel.startswith(_ASSETS_PREFIX)
+    )
 
 
 def list_notes(subdir: str | None = None, type: str | None = None) -> list[dict]:

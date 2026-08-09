@@ -8,6 +8,97 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Images in knowledge notes.** Paste a screenshot, drag a file in, pick one from the toolbar's
+  new Image button, or link a remote URL — the file is stored in the bundle under
+  `memory/assets/` and referenced as ordinary markdown (`![alt](assets/…)`), so notes stay small
+  and the vault still resolves in any other markdown tool. New endpoints
+  `POST /knowledge/asset` (raw body) and `GET /knowledge/asset`. Uploads are accepted only for
+  PNG/JPEG/GIF/WebP, the type is taken from the file's magic bytes rather than its name or
+  declared content-type, and the stored filename is rebuilt from scratch, so a hostile name
+  cannot escape the assets directory. SVG is deliberately rejected — it can carry script.
+- **Per-provider enable/disable.** Every AI provider now has an on/off switch in Settings → AI
+  providers, separate from whether it's connected. A disabled provider keeps its credentials but
+  is hidden from the model pickers, and runs that would have used it fail with a clear message
+  instead of silently falling back. New settings key `ai.providers.<id>.enabled` (absent = on);
+  `/providers/catalog` reports `connected` and `enabled`, and accepts `?usable=true`.
+- **Live Copilot is now opt-in, with its own settings.** The in-meeting copilot ships **off** and
+  lives under Settings → Capture → Live Copilot, where you can also tune how often it speaks up:
+  `minNewChars`, `cooldownSeconds`, `maxCardsPerPass`, and a per-recording `maxPasses` cap. These
+  are the new `live` settings block, re-read every pass so changes apply to a recording already in
+  progress. New endpoint `PATCH /settings/live`.
+- **A per-recording Live Copilot toggle on the Capture screen.** A switch on the copilot rail
+  overrides the app-level setting for that recording only; each new recording starts from the app
+  default again. Carried as an optional `enabled` field on the `live.attach` socket frame.
+- **`./start.sh local`.** Builds the sibling `curry-leaves-assistant-web` checkout from source
+  and bundles that instead of the pinned published UI — the one-step version of the manual
+  `npm run build` + `CURRY_LEAVES_WEB_DIR=… ./scripts/build_webui.sh` dance. It rebuilds on every
+  run (so a UI edit only needs a restart), resolves the checkout from `CURRY_LEAVES_WEB_DIR` else
+  `../curry-leaves-assistant-web`, and fails rather than falling back to the published bundle, so
+  you can't end up debugging a change that was never loaded. Bare `./start.sh` is unchanged and
+  still fetches the published version.
+- **`curry-leaves-assistant stop` and `status`.** The backend records itself in
+  `~/.curry-leaves/service.pid`, and the CLI can now use it: `stop` sends SIGTERM so the work
+  kernel drains cleanly (escalating to SIGKILL after `--timeout`, default 10s), and `status`
+  reports whether a backend is running. Both exit non-zero when nothing is running. Stale pids are
+  verified against the target's command line before anything is signalled.
+
+### Changed
+
+- **Codex no longer ships a built-in OAuth client id.** The bundled client id (OpenAI's Codex CLI
+  app) has been removed from the source; Codex sign-in now requires `CURRY_LEAVES_CODEX_CLIENT_ID`
+  to point at your own registered OpenAI OAuth integration. Settings → AI providers and the
+  first-run wizard now say this up front and disable the sign-in button instead of failing after
+  the click, and `/providers/status` reports `codex.configured`. Existing Codex connections keep
+  working until their tokens need refreshing. Most users should use the **OpenAI** API-key
+  provider instead — the ChatGPT-subscription backend is gated to OpenAI's own client, so a
+  third-party client generally can't use a ChatGPT plan. See
+  [docs/design/oauth-provider-registration.md](docs/design/oauth-provider-registration.md).
+- **Copilot's client-id option is easier to find.** The Copilot card now states that it signs in
+  with the built-in Curry Leaves GitHub app and points at Advanced for supplying your own client
+  ID, rather than only mentioning the override once you expand that section.
+
+- **Live Copilot no longer replays its whole conversation on every pass.** Passes shared one
+  session per recording so the agent would remember the cards it had surfaced — but a shared
+  session is rehydrated in full on each run (every prior brief, tool call, tool result, and
+  reply), so input cost grew *quadratically* with meeting length: by pass 100 a single pass
+  resent ~140k input tokens, and a long meeting could bill millions of tokens for a handful of
+  short cards. Each pass now runs in its own session and the brief carries the already-surfaced
+  card texts forward explicitly (capped, newest kept) — the only part of that history that was
+  actually doing any work. Per-pass input is flat instead of growing: ~25x less input over a
+  100-pass meeting, with the same "don't repeat yourself" guarantee. The first pass costs
+  slightly more, since it now carries meeting context that session memory used to hold.
+
+- **Tighter Live Copilot prompts.** The per-pass brief restated the role, the tool procedure, and
+  the output contract that the (cached) system prompt already carries — text billed at full price
+  on every tool step of every pass. The brief is now data only: which meeting, what it watches for,
+  who's present, the transcript window, the already-surfaced list, and the configured card cap and
+  kind filter. The `meeting-live` seed body was tightened in place. Same behavior, ~17% less input
+  per pass; the prompt prefix deliberately stays above the model's minimum cacheable size, since
+  trimming below it would silently disable prompt caching and cost *more*.
+- **The "record durable learnings" line is only injected for agents that can act on it.** It rode
+  in every agent's system prompt describing `update_profile` / `remember` — tools most agents don't
+  hold (Live Copilot holds three read-only tools), which is why it carried an "only if you hold the
+  tool" hedge. It's now gated on the tools actually held and names just those, matching how the
+  `ask` tool's rule already worked.
+
+- **The console script now points at `curry_leaves_assistant.cli:main`.** `stop`/`status` no longer
+  import `app.py`, dropping them from ~5s to ~0.25s. The bare command still starts the server, and
+  `python -m curry_leaves_assistant.app` is unchanged.
+
+- **Web UI bumped to 1.3.0.** Re-bundled the `curry-leaves-assistant-web` frontend, which carries
+  the UI for everything above: the note-editor Image button and paste/drop handling, the
+  per-provider enable/disable switches, Settings → Capture → Live Copilot, the per-recording
+  copilot toggle on the Capture rail, and the Codex client-id notice. `build_webui.sh` and the
+  Docker `WEB_VERSION` build arg are pinned to 1.3.0.
+
+### Fixed
+
+- **The `maxCardsPerPass` setting was capped at parse time.** Raising it above 2 had no effect —
+  the agent's output was truncated to the old hardcoded constant before the configured limit was
+  applied. Both the parse cap and the instruction in the agent's brief now follow the setting.
+
 ## [1.3.0] - 2026-07-28
 
 ### Added

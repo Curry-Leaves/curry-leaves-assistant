@@ -50,13 +50,25 @@ def _normalize_schedule(spec: dict | None) -> dict:
 
 
 def parse_frontmatter(text: str) -> tuple[dict, str]:
-    """Split a ``---``-delimited YAML frontmatter block from the markdown body."""
+    """Split a ``---``-delimited YAML frontmatter block from the markdown body.
+
+    A malformed frontmatter block (e.g. an unquoted colon-space in a value) yields an
+    empty dict rather than raising: this parser sits on the read path of every
+    frontmatter store, and one bad learned-skill file must never crash the caller
+    (notably _scoped_skills, which runs on every agent build). The body is still
+    returned so the file is usable; the writer is where correct YAML is enforced."""
     if text.startswith("---"):
         end = text.find("\n---", 3)
         if end != -1:
             raw = text[3:end].strip()
             body = text[end + 4:].lstrip("\n")
-            return (yaml.safe_load(raw) or {}), body
+            try:
+                meta = yaml.safe_load(raw) or {}
+            except yaml.YAMLError:
+                meta = {}
+            if not isinstance(meta, dict):  # a scalar/list front block isn't valid frontmatter
+                meta = {}
+            return meta, body
     return {}, text
 
 

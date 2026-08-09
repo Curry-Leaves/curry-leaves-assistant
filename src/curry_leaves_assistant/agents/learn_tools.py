@@ -23,6 +23,19 @@ def _err(msg: str) -> ToolResult:
     return ToolResult(content=msg, is_error=True)
 
 
+def _frontmatter_reparses(name: str) -> bool:
+    """Read the SKILL.md we just wrote back through the real YAML parser and confirm the
+    name/description survived. Guards against a value that round-trips to invalid or lossy
+    frontmatter (e.g. an unquoted colon-space) slipping onto disk and poisoning every later
+    _scoped_skills read. The writer already escapes correctly; this is belt-and-suspenders."""
+    from curry_leaves_assistant.stores.agent_store import parse_frontmatter
+    try:
+        meta, _ = parse_frontmatter(skills_store.read_file(name, "SKILL.md"))
+    except (FileNotFoundError, ValueError):
+        return False
+    return bool(meta.get("name"))
+
+
 class LearnSkillTool:
     """Author or update a LEARNED skill with its governance metadata, or mark an episode
     reviewed. Action-dispatched: create | update | mark_reviewed."""
@@ -81,6 +94,10 @@ class LearnSkillTool:
                 "learnedAt": now_iso(),
                 "metrics": {"loads": 0, "successes": 0, "failures": 0},
             })
+            if not _frontmatter_reparses(args.name):
+                skills_store.delete_skill(args.name)  # don't leave a poison file on disk
+                return _err("Skill frontmatter did not parse back as valid YAML — likely a "
+                            "special character in `description`. Simplify it and retry.")
             scope = ", ".join(args.appliesTo) if args.appliesTo else "all agents"
             return ToolResult(content=f"Created learned skill '{args.name}' (trial, scoped to {scope}).")
 

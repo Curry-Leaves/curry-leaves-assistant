@@ -29,14 +29,26 @@ from curry_leaves.providers.base import Context, Model, StreamEvent, StreamOpts
 from curry_leaves_assistant.providers.responses_wire import build_responses_request, parse_responses_stream
 from curry_leaves.providers.sse import iter_sse
 
-# Public client id used by the Codex CLI's loopback OAuth (not a secret).
 ISSUER = "https://auth.openai.com"
-# OpenAI's first-party Codex CLI OAuth client. Override with your own (env
-# CURRY_LEAVES_CODEX_CLIENT_ID) only if you have a registered OpenAI OAuth integration — see
+# We ship no default OAuth client: Codex login requires you to register your own OpenAI OAuth
+# integration and point CURRY_LEAVES_CODEX_CLIENT_ID at it — see
 # docs/design/oauth-provider-registration.md. Note the caveat: the ChatGPT-subscription (Codex)
 # backend is gated to originator=codex_cli_rs, so a third-party client generally can't use a
 # user's ChatGPT plan; for first-party OpenAI branding, use the API-key `openai` provider.
-CLIENT_ID = os.environ.get("CURRY_LEAVES_CODEX_CLIENT_ID") or "app_EMoamEEZ73f0CkXaXp7hrann"
+CLIENT_ID_ENV = "CURRY_LEAVES_CODEX_CLIENT_ID"
+NO_CLIENT_ID_ERROR = (
+    f"Codex login needs an OpenAI OAuth client id — set {CLIENT_ID_ENV} to your registered "
+    "integration's client id (see docs/design/oauth-provider-registration.md), or use the "
+    "API-key `openai` provider instead."
+)
+
+
+def _client_id() -> str:
+    """Resolved at call time, not import time, so setting the env var doesn't need a restart."""
+    cid = (os.environ.get(CLIENT_ID_ENV) or "").strip()
+    if not cid:
+        raise RuntimeError(NO_CLIENT_ID_ERROR)
+    return cid
 REDIRECT_PORT = 1455
 REDIRECT_URI = f"http://localhost:{REDIRECT_PORT}/auth/callback"
 SCOPE = "openid profile email offline_access"
@@ -57,6 +69,12 @@ def _b64url(raw: bytes) -> str:
 # ─── token persistence (settings.json under providers.codex) ──────────────────
 def _load() -> dict:
     return app_settings.read_settings()["ai"]["providers"].get("codex", {})
+
+
+def has_client_id() -> bool:
+    """Whether a client id is configured at all — the UI uses this to say "you must supply one"
+    up front rather than only after the user clicks Connect and the flow fails."""
+    return bool((os.environ.get(CLIENT_ID_ENV) or "").strip())
 
 
 def is_connected() -> bool:
@@ -124,6 +142,10 @@ async def _start_callback_server(state: str, fut: asyncio.Future) -> asyncio.Abs
 async def start_login() -> dict:
     """Begin the loopback OAuth: spin up the callback server and return the URL the UI
     should open. Returns {auth_url, state}; the UI then polls poll_login(state)."""
+    try:
+        client_id = _client_id()
+    except RuntimeError as e:
+        return {"status": "error", "error": str(e)}
     verifier = _b64url(os.urandom(64))
     challenge = _b64url(hashlib.sha256(verifier.encode("ascii")).digest())
     state = _b64url(os.urandom(32))
@@ -135,7 +157,7 @@ async def start_login() -> dict:
     _pending[state] = {"future": fut, "verifier": verifier, "server": server}
     params = urlencode({
         "response_type": "code",
-        "client_id": CLIENT_ID,
+        "client_id": client_id,
         "redirect_uri": REDIRECT_URI,
         "scope": SCOPE,
         "code_challenge": challenge,
@@ -158,7 +180,7 @@ def _cleanup(state: str) -> None:
 
 async def _exchange(grant: dict) -> dict:
     async with httpx.AsyncClient(timeout=30) as c:
-        r = await c.post(f"{ISSUER}/oauth/token", data={"client_id": CLIENT_ID, **grant})
+        r = await c.post(f"{ISSUER}/oauth/token", data={"client_id": _client_id(), **grant})
         r.raise_for_status()
         return r.json()
 

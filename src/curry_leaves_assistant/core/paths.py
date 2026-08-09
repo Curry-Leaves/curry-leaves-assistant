@@ -12,6 +12,10 @@ DATA_DIR = Path(os.environ.get("CURRY_LEAVES_DIR", str(Path.home() / ".curry-lea
 
 # Top-level files
 SETTINGS_PATH = DATA_DIR / "settings.json"
+# Written by the running backend, read by `curry-leaves-assistant stop` and by the Electron
+# shell (which SIGKILLs a stale pid on start). The name/location is a cross-repo contract:
+# desktop's src/electron/paths.ts hardcodes ~/.curry-leaves/service.pid.
+SERVICE_PID_PATH = DATA_DIR / "service.pid"
 TODOS_PATH = DATA_DIR / "todos.json"
 REMINDERS_PATH = DATA_DIR / "reminders.json"
 

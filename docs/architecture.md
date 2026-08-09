@@ -336,11 +336,15 @@ mechanism that drives every other background run.
 separating explicitly:
 
 - **`meeting-live`** runs **during** the meeting. It watches the transcript as it streams and
-  emits at most 2 context cards per pass (`open-loop`, `answer`, `ask-this`, `decided-before`,
-  `close-proposal`, …), arriving as live-context frames on the same socket. It is **opt-in per
-  template**: the engine only engages if the recording's template opts into live watching. Passes
-  are gated by a cooldown and a minimum transcript growth, all passes share one session so it
-  never repeats itself, and failures are swallowed — it must never disturb transcription.
+  emits a small number of context cards per pass (`open-loop`, `answer`, `ask-this`,
+  `decided-before`, `close-proposal`, …), arriving as live-context frames on the same socket.
+  It is **doubly opt-in**, and both gates must pass: the app-level `settings.live.enabled`
+  (**off by default**, since every pass is a real agent run against the user's provider — the
+  Capture screen can override it for a single recording via an `enabled` field on `live.attach`),
+  **and** the recording's template opting into live watching. Passes are gated by a cooldown and
+  a minimum transcript growth, both read from `settings.live` on every pass so a settings change
+  reaches a recording already in progress; all passes share one session so it never repeats
+  itself, and failures are swallowed — it must never disturb transcription.
 - **`meeting-copilot`** runs **after**, once the recording is transcribed. It produces the
   outputs the recording's template defines, in order, and turns genuinely-agreed action items
   into todos or reminders.
@@ -490,6 +494,7 @@ serves it as a single-page-app fallback.
 | `agents/<id>.md` + `<id>.meta.json` | agent definitions (portable markdown + triggers/schedule/history sidecar) |
 | `recordings/<id>/` | audio + transcripts |
 | **`memory/`** | **the one `cl_memory` bundle** — knowledge notes (`apps/ topics/ people/ meetings/ notes/`) *and* every memory kind (`memory/profile/`, `memory/agents/<id>/`, `memory/episodes/<agentId>/`, `memory/consolidated/`), partitioned by each note's `type:` |
+| `memory/assets/` | image attachments for notes, referenced as bundle-relative markdown (`![](assets/…)`) so the vault stays portable; written and served by `domain/knowledge_assets.py` + `GET|POST /knowledge/asset` |
 | `memory/.index/` | derived + disposable: `index.db` (FTS5/BM25 + vectors) and `stats.db` (the per-run episodic stats mirror) |
 | `skills/` | procedural memory (skills, incl. learned) — a **separate** bundle |
 | `templates/` | meeting templates (superseded recording profiles) |

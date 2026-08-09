@@ -4,9 +4,16 @@ from __future__ import annotations
 import asyncio
 
 from fastapi import APIRouter, Request, Response
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
-from curry_leaves_assistant.domain import knowledge, knowledge_gardener, knowledge_ingest
+from curry_leaves_assistant.core.paths import knowledge_path
+from curry_leaves_assistant.domain import (
+    knowledge,
+    knowledge_assets,
+    knowledge_gardener,
+    knowledge_ingest,
+)
 from curry_leaves_assistant.orchestration import work as work_mod
 from curry_leaves_assistant.stores import agent_store, inputs_store
 
@@ -107,6 +114,45 @@ def get_knowledge_note(path: str):
 def knowledge_note_links(path: str):
     """A note's outbound links + inbound backlinks (for the note page)."""
     return knowledge.note_links(path)
+
+
+@router.post("/knowledge/asset")
+async def upload_knowledge_asset(request: Request, filename: str = "image"):
+    """Store a pasted/dropped image in the bundle; returns the note-relative markdown path.
+
+    Raw body rather than multipart: the editor already holds the bytes as a Blob (from a paste
+    event or a drop), so a form wrapper would only add encoding on both ends.
+    """
+    try:
+        return knowledge_assets.save(await request.body(), filename)
+    except ValueError as exc:
+        return Response(content=str(exc), status_code=400)
+
+
+@router.get("/knowledge/asset")
+def get_knowledge_asset(path: str):
+    """Serve a stored image so `![](assets/x.png)` resolves in the note renderer.
+
+    `Content-Disposition: inline` with a nosniff guard: the type we send is derived from the
+    extension this app assigned at upload (never the client's claim), and nosniff stops the
+    browser from second-guessing it — together that keeps a mislabeled file from being
+    interpreted as script on our own origin.
+    """
+    try:
+        p = knowledge_path(path)
+    except ValueError as exc:
+        return Response(content=str(exc), status_code=400)
+    # Confine reads to the assets dir: this route serves images, not arbitrary bundle files
+    # (notes already have their own route, and `..` is caught above).
+    if not path.strip("/").startswith(f"{knowledge_assets.ASSETS_SUBDIR}/"):
+        return Response(status_code=404)
+    if not p.is_file():
+        return Response(status_code=404)
+    return FileResponse(
+        p,
+        media_type=knowledge_assets.content_type(path),
+        headers={"X-Content-Type-Options": "nosniff", "Content-Disposition": "inline"},
+    )
 
 
 @router.get("/knowledge/note/history")

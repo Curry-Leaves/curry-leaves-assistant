@@ -328,6 +328,14 @@ async def build_runner(agent_record: dict, model_override: str | None = None, se
     if agent_provider:
         name = agent_provider
         api_key, cfg_model = app_settings.provider_cfg(name)
+        # A pinned provider the user has since switched off must fail loudly, not fall back to
+        # the app default: the agent's author chose this provider deliberately, and silently
+        # running it somewhere else changes its behaviour (and its cost) without telling anyone.
+        if not app_settings.provider_enabled(name):
+            raise RuntimeError(
+                f"This assistant is pinned to AI provider '{name}', which is turned off. "
+                "Switch it back on in Settings → AI providers, or change the assistant's "
+                "provider.")
     else:
         name, api_key, cfg_model = app_settings.active_ai()
         # No silent fallback: if the user hasn't connected a provider AND set it as the default,
@@ -338,6 +346,12 @@ async def build_runner(agent_record: dict, model_override: str | None = None, se
             raise RuntimeError(
                 "No AI provider is set as the default. Connect a provider in Settings → "
                 "AI providers and click 'Set as default' before running agents or chat.")
+        # Same rule for the app default: refuse rather than auto-detect a substitute. Mirrors
+        # readiness.ai_status()'s provider_disabled gate so the banner and real runs agree.
+        if not app_settings.provider_enabled(name):
+            raise RuntimeError(
+                f"The default AI provider '{name}' is turned off. Switch it back on in "
+                "Settings → AI providers, or set a different provider as the default.")
     # Key-based providers with no key anywhere would otherwise "run" and return an
     # empty result that gets recorded as success — fail here with an actionable
     # message so the run surfaces as failed in the UI instead.
@@ -522,12 +536,20 @@ def _with_user_profile(instructions: str, *, agent_id: str | None = None,
             blocks.append("## How the user wants you to work\n" + behavior)
     except Exception:
         pass
-    instinct = (
-        "\n\n_When you learn something durable, record it (only if you hold the tool): a fact or "
-        "preference about the USER any assistant should know → `update_profile`; a convention "
-        "specific to how YOU do your job → `remember`. A high bar keeps memory clean — don't "
-        "record one-offs or guesses._"
-    )
+    # Gated on the tools actually held — same pattern as ask_rule below. Injecting it
+    # unconditionally spent tokens in EVERY agent's prompt to describe tools most of them can't
+    # call (meeting-live holds only three read tools), which is why it needed the "only if you
+    # hold the tool" hedge. Naming just the tool the agent has is shorter and unambiguous.
+    memory_tools = [t for t in ("update_profile", "remember") if t in held]
+    instinct = ""
+    if memory_tools:
+        what = {
+            "update_profile": "a fact or preference about the USER → `update_profile`",
+            "remember": "a convention specific to how YOU work → `remember`",
+        }
+        instinct = ("\n\n_Record something durable when you learn it: "
+                    + "; ".join(what[t] for t in memory_tools)
+                    + ". Keep the bar high — no one-offs or guesses._")
     ask_rule = ""
     if tool_names and "ask" in tool_names:
         # The `ask` tool renders a structured question card the user answers in place, and it
@@ -567,7 +589,12 @@ def _scoped_skills(skill_names: list[str], agent_id: str | None = None):
     targeted: set[str] = set()
     retired: set[str] = set()
     for sk in full.all():
-        meta = skill_meta.read_meta(sk.name)
+        try:
+            meta = skill_meta.read_meta(sk.name)
+        except Exception:
+            # A single unreadable skill must never abort the whole agent build (and thus
+            # the chat run). parse_frontmatter is already tolerant; this is a last resort.
+            continue
         status = meta.get("status")
         if status == "retired":
             retired.add(sk.name)

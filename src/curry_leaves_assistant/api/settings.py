@@ -28,6 +28,14 @@ async def patch_settings_ai(request: Request):
     return updated
 
 
+@router.patch("/settings/live")
+async def patch_settings_live(request: Request):
+    """Configure the in-meeting Live Copilot: {enabled?, minNewChars?, cooldownSeconds?,
+    maxPasses?, maxCardsPerPass?}. Takes effect on the next pass of any recording already
+    running — live_context re-reads this per pass rather than snapshotting it at attach."""
+    return app_settings.patch_live(await request.json())
+
+
 @router.patch("/settings/appearance")
 async def patch_settings_appearance(request: Request):
     """Persist appearance prefs: {theme?}."""
