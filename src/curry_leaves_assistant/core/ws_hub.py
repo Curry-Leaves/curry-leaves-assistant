@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import time
 from typing import Any, Optional
 
 # A slow/stuck client shouldn't grow memory without bound; past this many undrained
@@ -30,6 +31,13 @@ _MAX_QUEUED = int(os.environ.get("CURRY_LEAVES_WS_QUEUE_MAX", "2000"))
 # to keep its buffer around.
 _CHAT_BUFFER_MAX = int(os.environ.get("CURRY_LEAVES_WS_CHAT_BUFFER", "1000"))
 _CHAT_BUFFER_TTL_SEC = 60.0
+# A run's buffer is normally dropped by the timer armed on its terminal (done/error) frame.
+# But a run that is cancelled, crashes, or is registered by open_chat and never streams has no
+# terminal frame — so nothing ever fires and its entry (up to _CHAT_BUFFER_MAX frames) stays
+# resident for the life of the process. These two bound that: any buffer untouched for
+# _CHAT_IDLE_TTL_SEC is swept, and the total number of retained runs is capped.
+_CHAT_IDLE_TTL_SEC = float(os.environ.get("CURRY_LEAVES_WS_CHAT_IDLE_TTL", "1800"))
+_CHAT_MAX_RUNS = int(os.environ.get("CURRY_LEAVES_WS_CHAT_MAX_RUNS", "200"))
 
 _loop: Optional[asyncio.AbstractEventLoop] = None
 
@@ -103,10 +111,12 @@ class _Hub:
         """Buffer a chat frame under ``run_id`` (for replay) and fan it out live to
         subscribers of ``chat:<run_id>``."""
         def _do() -> None:
+            self._sweep_chat(incoming=0 if run_id in self._chat else 1)
             rec = self._chat.get(run_id)
             if rec is None:
-                rec = {"frames": [], "seq": 0, "ended_at": None}
+                rec = {"frames": [], "seq": 0, "ended_at": None, "touched": time.monotonic()}
                 self._chat[run_id] = rec
+            rec["touched"] = time.monotonic()
             rec["seq"] += 1
             seq = rec["seq"]
             rec["frames"].append((seq, ev))
@@ -141,9 +151,39 @@ class _Hub:
         Without this, chat_exists() would be False until the first frame, so a mirror that
         subscribes in the gap (right after chat.run.started) gets bounced with chat.gone."""
         def _do() -> None:
+            self._sweep_chat(incoming=0 if run_id in self._chat else 1)
+            # Insert AFTER the sweep: the run being opened is the newest and must survive it,
+            # even if the sweep just evicted others to make room.
             if run_id not in self._chat:
-                self._chat[run_id] = {"frames": [], "seq": 0, "ended_at": None}
+                self._chat[run_id] = {"frames": [], "seq": 0, "ended_at": None,
+                                      "touched": time.monotonic()}
         self._on_loop(_do)
+
+    def _sweep_chat(self, *, incoming: int = 0) -> None:
+        """Drop chat buffers the terminal-frame timer will never collect.
+
+        The happy path is still the ``call_later`` armed on done/error. This is the backstop for
+        runs that end without one — cancelled, crashed, or opened by ``open_chat`` and never
+        streamed — which otherwise pin their frames for the life of the process. Runs on
+        publish/open (loop thread, no timer of its own): idle buffers go first, then the oldest
+        if we are still over the run cap.
+
+        ``incoming`` is how many entries the caller is about to add, so the cap holds *after*
+        the insert rather than one over it.
+        """
+        now = time.monotonic()
+        if _CHAT_IDLE_TTL_SEC > 0:
+            for rid, rec in list(self._chat.items()):
+                if now - float(rec.get("touched") or 0.0) >= _CHAT_IDLE_TTL_SEC:
+                    self._chat.pop(rid, None)
+        budget = max(0, _CHAT_MAX_RUNS - incoming)
+        if len(self._chat) > budget:
+            # Still over budget: evict oldest-touched first. A live run is touched by every
+            # frame it publishes, so the ones shed here are the least recently active.
+            for rid, _ in sorted(self._chat.items(),
+                                 key=lambda kv: float(kv[1].get("touched") or 0.0)
+                                 )[:len(self._chat) - budget]:
+                self._chat.pop(rid, None)
 
     # ─── chat replay (loop thread) ────────────────────────────────────────────
     def chat_exists(self, run_id: str) -> bool:

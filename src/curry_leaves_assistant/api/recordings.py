@@ -17,6 +17,17 @@ from curry_leaves_assistant.stores import agent_store
 
 router = APIRouter(tags=["recordings"])
 
+# Strong refs to detached re-transcription tasks. asyncio holds only a weak ref to a bare
+# create_task result, so without this a re-transcribe kicked off by save-audio can be GC'd
+# mid-flight (same reason ws.py keeps _detached_finishers).
+_bg_transcriptions: set[asyncio.Task] = set()
+
+
+def _detach(coro) -> None:
+    task = asyncio.create_task(coro)
+    _bg_transcriptions.add(task)
+    task.add_done_callback(_bg_transcriptions.discard)
+
 
 class CreateRec(BaseModel):
     name: str | None = None
@@ -53,7 +64,7 @@ async def finalize_recording(rec_id: str, body: FinalizeRec):
         meta = recordings.finalize(rec_id, name=body.name, duration=body.duration)
         if meta is None:
             return Response(status_code=404)
-        asyncio.create_task(_bg(root.trace_id, root.span_id))
+        _detach(_bg(root.trace_id, root.span_id))
     return meta
 
 
@@ -70,7 +81,7 @@ async def recover_recording(rec_id: str):
         meta = recordings.recover(rec_id)
         if meta is None:
             return Response(status_code=404)
-        asyncio.create_task(_bg(root.trace_id, root.span_id))
+        _detach(_bg(root.trace_id, root.span_id))
     return meta
 
 
@@ -79,6 +90,14 @@ def list_interrupted_recordings():
     """Drafts that crashed/were orphaned mid-capture and need a Save/Discard decision. The
     Recordings tab shows these as a banner. Kept as its own route so the main list stays clean."""
     return recordings.list_interrupted()
+
+
+@router.get("/recordings/tags")
+def list_recording_tags():
+    """Tags in use across recordings, with counts, most-used first — the pick-from-history
+    source for the tag chips and the group order in the Recordings rail. Declared above
+    /recordings/{rec_id} so the literal path isn't captured by the path param."""
+    return {"tags": recordings.tag_suggestions()}
 
 
 @router.get("/recordings")
@@ -108,7 +127,7 @@ async def save_audio(rec_id: str, request: Request, duration: float | None = Non
     meta = recordings.save_audio(rec_id, await request.body(), duration)
     if meta is None:
         return Response(status_code=404)
-    asyncio.create_task(asyncio.to_thread(transcribe.transcribe_recording, rec_id))
+    _detach(asyncio.to_thread(transcribe.transcribe_recording, rec_id))
     return meta
 
 
@@ -130,7 +149,7 @@ def resubmit_recording(rec_id: str):
 
 
 _REC_PATCH_FIELDS = {"name", "notes", "links", "tags", "saveToKnowledge", "language",
-                     "attendees", "templateId", "templateIds"}
+                     "attendees", "organizer", "templateId", "templateIds"}
 
 
 @router.patch("/recordings/{rec_id}")

@@ -43,6 +43,7 @@ def create_draft(name: str | None = None, template_id: str | None = None, langua
         "links": [],                 # [{url, title?}]
         "attachments": [],           # [{name, mdPath, size, chars}]
         "attendees": [],             # people in the meeting (names); editable while recording
+        "organizer": None,           # whose meeting it is — one of `attendees`, or None
         "saveToKnowledge": True,     # file this meeting into the knowledge hub
         # The meeting template(s) driving the copilot's outputs. `templateId` is the primary
         # (owns the summary + kept for back-compat); `templateIds` is the full set (a recording
@@ -257,6 +258,33 @@ def update(rec_id: str, patch: dict) -> dict | None:
     if meta is None:
         return None
     meta.update(patch)
+    # Normalize the two free-text fields the UI now writes directly. Done here rather than in the
+    # route because agents/agent_tools.py calls update() too, and a blank name or a tag list with
+    # a stray "" would otherwise reach disk and show up as an unnamed row / an empty tag group.
+    if "name" in patch:
+        name = str(patch.get("name") or "").strip()
+        meta["name"] = name or "Untitled recording"  # the sentinel the auto-titler looks for
+    if "tags" in patch:
+        # Order is meaningful — the Recordings rail groups a recording under tags[0] — so dedupe
+        # in place instead of sorting. Case-insensitive, keeping the spelling the user typed.
+        seen: set[str] = set()
+        tags: list[str] = []
+        for raw in (patch.get("tags") or []):
+            tag = str(raw).strip()
+            key = tag.lower()
+            if tag and key not in seen:
+                seen.add(key)
+                tags.append(tag)
+        meta["tags"] = tags
+    # The organizer is one of the attendees, so the two fields have to stay consistent however
+    # they're patched: dropping someone from the attendee list clears the organizer rather than
+    # leaving a name pointing at nobody. Matched case-insensitively, then snapped to the
+    # attendee-list spelling so the UI can compare with ===.
+    if "organizer" in patch or "attendees" in patch:
+        attendees = [a for a in (meta.get("attendees") or []) if isinstance(a, str)]
+        organizer = meta.get("organizer")
+        want = str(organizer or "").strip().lower()
+        meta["organizer"] = next((a for a in attendees if a.strip().lower() == want), None) if want else None
     # Changing the template selection (add/remove one live or after the fact) re-derives which
     # agents process the recording and keeps templateId/templateIds in sync. Either field may
     # be sent; the array is authoritative, with templateId as its first element.
@@ -365,6 +393,8 @@ def agent_context(rec_id: str, include_outputs: bool = False) -> str:
     if attendees:
         parts.append("Attendees (attribute action items and owners to these people when named): "
                      + ", ".join(attendees))
+    if (meta.get("organizer") or "").strip():
+        parts.append(f"Organizer (whose meeting this is; owns follow-ups nobody else claimed): {meta['organizer']}")
     if (meta.get("notes") or "").strip():
         parts.append(f"\nUser notes:\n{meta['notes'].strip()}")
     links = meta.get("links") or []
@@ -583,6 +613,40 @@ def attendee_suggestions() -> list[str]:
     except Exception:
         pass  # people listing is best-effort — never block the suggestions
     return sorted(seen.values(), key=str.lower)
+
+
+def tag_suggestions() -> list[dict]:
+    """Distinct recording tags with their use counts, most-used first then alphabetical.
+
+    Derived on read by scanning every meta.json rather than kept in a registry file — same
+    call as `attendee_suggestions()` above and `cl_memory`'s `established_tags()`: a tag only
+    exists because a recording carries it, so a separate store could only ever drift. Unlike
+    `established_tags()` there's no >1-use floor, because the picker has to offer a tag back
+    the moment it's first typed, and the left panel groups by tags a single recording has.
+
+    Tags differing only in case are one tag. The spelling shown is the one used most often,
+    ties broken lexicographically — NOT the first one scanned, because iterdir() order over
+    randomly-named recording dirs is arbitrary and would make the displayed casing (and the
+    group heading built from it) flip between calls.
+    """
+    counts: dict[str, int] = {}
+    spellings: dict[str, dict[str, int]] = {}
+    if RECORDINGS_DIR.exists():
+        for d in RECORDINGS_DIR.iterdir():
+            # RECORDINGS_DIR also holds vocabulary.json — _meta() returns None for a non-dir.
+            m = _meta(d.name)
+            for tag in ((m or {}).get("tags") or []):
+                label = str(tag or "").strip()
+                key = label.lower()
+                if not key:
+                    continue
+                counts[key] = counts.get(key, 0) + 1
+                seen = spellings.setdefault(key, {})
+                seen[label] = seen.get(label, 0) + 1
+    return [
+        {"tag": min(spellings[k], key=lambda s: (-spellings[k][s], s)), "count": counts[k]}
+        for k in sorted(counts, key=lambda k: (-counts[k], k))
+    ]
 
 
 def list_recordings() -> list[dict]:

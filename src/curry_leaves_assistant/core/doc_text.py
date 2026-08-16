@@ -8,7 +8,9 @@ attached document is rendered identically wherever it's uploaded.
 from __future__ import annotations
 
 import mimetypes
+import os
 import re
+import threading
 from pathlib import Path
 
 # Decoded straight to text.
@@ -92,14 +94,47 @@ def unique(d: Path, name: str) -> Path:
 # ─── PDF → markdown via docling with forced full-page OCR ──────────────────────
 # Many PDFs (Manning-style books, scans) have an obfuscated or absent text layer, so a
 # plain text extract comes out as Caesar-shifted junk. Docling renders each page and OCRs
-# it, giving clean markdown regardless. The converter loads ML models once, so cache it.
+# it, giving clean markdown regardless. The converter loads ML models once, so cache it —
+# but release it again once idle: PDF import is rare and bursty (a few files, then nothing for
+# days), while the converter's OCR + layout models are the single largest resident allocation
+# in the process. Holding them forever for a one-off import is what pushes an otherwise-idle
+# app into swap. Re-building costs seconds, and only on a PDF that arrives after the gap.
 _docling_conv = None
+_docling_released_after = float(os.environ.get("CURRY_LEAVES_DOCLING_IDLE_SEC", "600"))
+_docling_timer: threading.Timer | None = None
+_docling_lock = threading.Lock()
+
+
+def release_docling() -> None:
+    """Drop the cached docling converter (called on the idle timer, and by tests)."""
+    global _docling_conv, _docling_timer
+    with _docling_lock:
+        _docling_conv = None
+        if _docling_timer is not None:
+            _docling_timer.cancel()
+            _docling_timer = None
+
+
+def _arm_docling_release() -> None:
+    """(Re)start the idle countdown after a conversion. Caller must hold _docling_lock."""
+    global _docling_timer
+    if _docling_timer is not None:
+        _docling_timer.cancel()
+    if _docling_released_after <= 0:
+        return
+    _docling_timer = threading.Timer(_docling_released_after, release_docling)
+    _docling_timer.daemon = True  # never hold up interpreter shutdown
+    _docling_timer.start()
 
 
 def _pdf_to_markdown(path: Path) -> str:
     """Convert a PDF to markdown with docling (forced OCR). Blocking + slow (~seconds per
-    page) — callers run it off the request path."""
+    page) — callers run it off the request path. The converter is cached between calls and
+    released after CURRY_LEAVES_DOCLING_IDLE_SEC of inactivity."""
     global _docling_conv
+    with _docling_lock:
+        if _docling_timer is not None:
+            _docling_timer.cancel()   # a conversion is starting — don't release under it
     if _docling_conv is None:
         from docling.document_converter import DocumentConverter, PdfFormatOption
         from docling.datamodel.base_models import InputFormat
@@ -113,7 +148,13 @@ def _pdf_to_markdown(path: Path) -> str:
             pass
         _docling_conv = DocumentConverter(
             format_options={InputFormat.PDF: PdfFormatOption(pipeline_options=opts)})
-    return (_docling_conv.convert(str(path)).document.export_to_markdown() or "").strip()
+    try:
+        return (_docling_conv.convert(str(path)).document.export_to_markdown() or "").strip()
+    finally:
+        # Start the idle countdown even if the conversion raised — a failed import shouldn't
+        # pin the models either.
+        with _docling_lock:
+            _arm_docling_release()
 
 
 def to_markdown(path: Path, raw: bytes) -> str:

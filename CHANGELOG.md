@@ -8,6 +8,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Recording tags.** Tag a recording during or after capture, with suggestions from tags you've
+  already used. New `GET /recordings/tags` lists them with counts.
+- **Meeting organizer.** Mark one attendee as the organizer; agents treat them as the owner of
+  unclaimed follow-ups. New `organizer` field on the recording.
+
+### Fixed
+
+- **Memory no longer grows unbounded in long-running paths.** Transcription decodes are now
+  serialized and free the old model on a settings change; live audio buffers, chat replay
+  buffers, live-context sessions, and the docling PDF converter are all capped or released when
+  idle. Tunable via `CURRY_LEAVES_TRANSCRIBE_CONCURRENCY`, `CURRY_LEAVES_LIVE_MAX_SEC`,
+  `CURRY_LEAVES_WS_CHAT_IDLE_TTL`, `CURRY_LEAVES_WS_CHAT_MAX_RUNS`, and
+  `CURRY_LEAVES_DOCLING_IDLE_SEC`.
+- **Background re-transcription tasks can't be garbage-collected mid-flight.**
+
+### Changed
+
+- **Recording names and tags are normalized on save.** Names are trimmed (a blank one reverts to
+  `Untitled recording`) and tags case-insensitively deduped in order — the first tag decides which
+  group a recording files under.
+
 ## [1.4.0] - 2026-08-09
 
 ### Added

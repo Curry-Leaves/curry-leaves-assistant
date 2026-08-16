@@ -137,18 +137,38 @@ def download_model(name: str, backend: str = DEFAULT_BACKEND) -> bool:
     return is_downloaded(name, backend)
 
 
-# ─── faster-whisper: keep one warm model handle, dropped on reset_model() ──────
+# ─── warm model handles, dropped on reset_model() ─────────────────────────────
 _fw_model = None
 _fw_model_key: str | None = None
 _fw_lock = threading.Lock()
 
+# Only ONE transcription decodes at a time, whichever backend is active. Both backends cache
+# the loaded model (faster-whisper via _fw_model below, mlx via its own ModelHolder), so the
+# weights were never the whole story — but each concurrent decode still allocates its own
+# activations, mel spectrogram, and KV cache on top, and on Apple Silicon that lands in unified
+# memory the OS cannot swap. Several recordings finalizing together (or a boot recovering stale
+# drafts) was enough to exhaust the machine. Whisper saturates the accelerator anyway, so
+# serializing costs little throughput. Every transcription path funnels through _segments(), so
+# this one gate covers finalize, recover, audio-replace, the clip endpoint, and live streams.
+_decode_gate = threading.Semaphore(int(os.environ.get("CURRY_LEAVES_TRANSCRIBE_CONCURRENCY", "1")))
+
 
 def reset_model() -> None:
-    """Drop any warm backend handle so the next transcription reloads."""
+    """Drop any warm backend handle so the next transcription reloads.
+
+    Covers both backends. mlx keeps its cached model in its own module-level ModelHolder rather
+    than here, so switching model or backend in Settings used to leave the previous mlx weights
+    resident for the life of the process — clearing it is what actually frees them."""
     global _fw_model, _fw_model_key
     with _fw_lock:
         _fw_model = None
         _fw_model_key = None
+    try:
+        from mlx_whisper.transcribe import ModelHolder  # type: ignore[import-untyped]
+        ModelHolder.model = None
+        ModelHolder.model_path = None
+    except Exception:
+        pass  # mlx not installed (non-Apple-Silicon), or its internals moved — nothing to drop
 
 
 def _mlx_model_path() -> str:
@@ -232,6 +252,12 @@ def _vocab(extra: str | None) -> str:
 
 def _segments_mlx(audio, language: Any = _UNSET, vocabulary: str | None = None) -> list[dict]:
     import mlx_whisper  # lazy — heavy
+    # No warm handle is kept here on purpose: mlx_whisper caches the decoded model itself, in
+    # ModelHolder, keyed by path — so repeated calls already reuse one copy. (transcribe() takes
+    # `path_or_hf_repo`, NOT a model object; anything else lands in **decode_options and is
+    # passed down to the decoder, which breaks the call.) What we DO need is _decode_gate in
+    # _segments: ModelHolder holds one model, but concurrent callers each build their own
+    # activations and KV cache on top of it, and that is what exhausted memory.
     result = mlx_whisper.transcribe(
         audio, path_or_hf_repo=_mlx_model_path(),
         language=_resolve_language(language), condition_on_previous_text=False,
@@ -273,10 +299,14 @@ def _segments(audio, language: Any = _UNSET, vocabulary: str | None = None) -> l
     ``language`` overrides the global Settings default for this call only (e.g. a
     per-recording language pick); leave unset to use ``active_language()``. ``vocabulary``
     adds per-recording bias words (e.g. attendee names) on top of the Settings vocabulary.
+
+    Serialized by ``_decode_gate`` — see its definition for why. This is the single chokepoint
+    every transcription path reaches, so the bound holds no matter who calls.
     """
-    if active_backend() == "faster-whisper":
-        return _segments_fw(audio, language, vocabulary)
-    return _segments_mlx(audio, language, vocabulary)
+    with _decode_gate:
+        if active_backend() == "faster-whisper":
+            return _segments_fw(audio, language, vocabulary)
+        return _segments_mlx(audio, language, vocabulary)
 
 
 def _transcribe(audio) -> str:
@@ -320,23 +350,50 @@ def transcribe_pcm(samples) -> str:
 # bigger → better accuracy, more latency. Half a second is the floor worth transcribing.
 _LIVE_CHUNK_BYTES = int(16000 * 4 * float(os.environ.get("CURRY_LEAVES_LIVE_CHUNK_SEC", "8")))
 _LIVE_MIN_BYTES = int(16000 * 4 * 0.5)
+# Hard ceiling on undrained live audio (default 60s ≈ 3.8 MB). Mic input arrives in real time
+# but transcription is not guaranteed to keep up — it now queues behind _decode_gate, and a
+# slow model can fall behind indefinitely. Without a cap the buffer grows for the whole meeting
+# and the backlog can never be worked off. Past this we drop the OLDEST audio: losing the
+# stalest seconds keeps live captions tracking what is being said now, which is what the
+# feature is for. The finalized recording is transcribed separately from the full audio file
+# on disk, so nothing dropped here is lost from the permanent transcript.
+_LIVE_MAX_BYTES = int(16000 * 4 * float(os.environ.get("CURRY_LEAVES_LIVE_MAX_SEC", "60")))
 
 
 class LiveTranscriber:
     """Accumulates float32-PCM bytes for one live stream and transcribes a chunk whenever
     enough audio has arrived. Transport-free: ``feed`` / ``flush`` return the recognized
-    text (or "") and the caller delivers it. One instance per live stream."""
+    text (or "") and the caller delivers it. One instance per live stream.
+
+    The buffer is capped (``_LIVE_MAX_BYTES``); overflow discards the oldest audio."""
 
     def __init__(self) -> None:
         self._buf = bytearray()
+        self.dropped_bytes = 0  # observability: how much live audio we shed under backpressure
+
+    def accept(self, data: bytes) -> None:
+        """Buffer PCM bytes without transcribing. Cheap and non-blocking — safe to call from
+        the socket read loop on every inbound frame. Overflow drops the oldest audio."""
+        self._buf.extend(data)
+        if len(self._buf) > _LIVE_MAX_BYTES:
+            # Keep the newest _LIVE_MAX_BYTES; the front is the stalest audio.
+            excess = len(self._buf) - _LIVE_MAX_BYTES
+            del self._buf[:excess]
+            self.dropped_bytes += excess
+
+    def feed_pending(self) -> str:
+        """Transcribe the buffer if a full chunk has accumulated, else "". Pairs with
+        ``accept``: the caller buffers on the loop thread and calls this from a worker.
+        Runs the (blocking) model inline — call under ``asyncio.to_thread``."""
+        if len(self._buf) >= _LIVE_CHUNK_BYTES:
+            return self._drain()
+        return ""
 
     def feed(self, data: bytes) -> str:
         """Append PCM bytes; transcribe + return text once a full chunk has accumulated,
         else "". Runs the (blocking) model inline — call under ``asyncio.to_thread``."""
-        self._buf.extend(data)
-        if len(self._buf) >= _LIVE_CHUNK_BYTES:
-            return self._drain()
-        return ""
+        self.accept(data)
+        return self.feed_pending()
 
     def flush(self) -> str:
         """Transcribe whatever remains (the final tail). Returns text or ""."""

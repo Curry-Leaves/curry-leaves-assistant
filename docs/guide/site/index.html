@@ -681,6 +681,9 @@ docker compose up --build                                # then open http://loca
       <li><strong>Meeting templates</strong> decide what you get when you stop — a "1:1" template might produce just a summary; "Client calls" adds a follow-up email draft. A template is an ordered list of output sections, and you can have Curry Leaves draft one for you from a sentence, then revise it.</li>
       <li><strong>Language &amp; microphone</strong> — pick the input device and, per recording, the transcription language. Language follows your Settings default with a per-recording override, including auto-detect: twelve languages plus auto-detect.</li>
       <li><strong>Attachments, notes &amp; attendees</strong> — drop the agenda or brief onto the recording (converted to text for context), pin timestamped notes as it runs, and add attendees; naming an attendee also pre-briefs the copilot and biases the transcriber toward their name.</li>
+      <li><strong>Text or timeline</strong> — the toggle above the live transcript switches between one flowing passage and a timestamped list, oldest at the top, so you can see when something was said. Either way it follows the newest speech until you scroll up to read back.</li>
+      <li><strong>Notes sit under the transcript</strong> — the note box and the running notes it pins into are together in the middle column, so you can see what you've jotted without leaving the conversation. Type <strong>@</strong> to mention an attendee; it drops in their name.</li>
+      <li><strong>Organizer</strong> — click the person icon on an attendee to mark whose meeting it is. Assistants treat them as the owner of any follow-up nobody else picked up.</li>
       <li><strong>Save to Knowledge Hub</strong> and <strong>Don't store audio</strong> are per-recording switches — file the meeting into Memory, and optionally discard the audio once the transcript exists.</li>
     </ul>
     <h3>A copilot in the room</h3>
@@ -697,6 +700,18 @@ docker compose up --build                                # then open http://loca
     <strong>summary and action items</strong> (tick them off in place), one <strong>output per section</strong>
     the template defines — each on its own tab — plus your own <strong>notes, links and tags</strong>, and a
     per-recording <strong>Save to Memory</strong> switch.</p>
+    <p><strong>Rename</strong> a recording by clicking its title and typing; Enter saves, Escape puts it
+    back. Renaming also stops the auto-titler from renaming it later, so a name you chose stays chosen.</p>
+    <h3>Tags</h3>
+    <p><strong>Tag a recording while it's still running</strong> — the panel on the right of the Capture
+    screen has a Tags row next to Attendees — or add them any time afterwards from
+    <strong>Notes &amp; files</strong>. Tags you've used before are offered as you type, so the same meeting
+    kind keeps the same tag instead of drifting into <em>standup</em>, <em>Standup</em> and <em>stand-up</em>.</p>
+    <p>Turn on <strong>Group by tag</strong> above the list and recordings collapse into a group per tag,
+    most-used first, with anything untagged at the bottom. A recording files under its <em>first</em> tag,
+    so it shows up in exactly one place — the first tag is highlighted when you edit them, and clicking
+    another one promotes it. Inside each group, the toggle beside it flips between
+    <strong>newest</strong> and <strong>oldest</strong> first. Both choices are remembered.</p>
     <p>Three ways to make it try again:</p>
     <ul>
       <li><strong>Re-run</strong> a single output section, or re-run the whole meeting copilot.</li>

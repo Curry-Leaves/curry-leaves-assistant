@@ -46,6 +46,14 @@ _WINDOW_CHARS = 1600        # how much recent transcript the agent sees
 # replay. Newest-last: a card from 40 minutes ago is unlikely to be re-surfaced now, whereas the
 # recent ones are exactly what the agent would otherwise restate.
 _MAX_ALREADY = 12
+# How much transcript a session retains. Only the last _WINDOW_CHARS is ever read into a brief,
+# so anything beyond a small multiple of that is dead weight held for the whole meeting — an
+# hour of speech is several hundred KB per active recording. Keep enough slack that the window
+# is always full, and drop the rest.
+_MAX_TRANSCRIPT_CHARS = _WINDOW_CHARS * 4
+# Cap on the dedup/anti-repetition history. Only the newest _MAX_ALREADY are ever sent, and
+# _seen exists purely as an exact-duplicate backstop, so neither needs to be unbounded.
+_MAX_SURFACED = 200
 
 
 def _parse_cards(output: str, allowed_kinds: list[str] | None = None,
@@ -212,10 +220,18 @@ class _Session:
         return self.enabled() and bool(self._watch_kinds())
 
     # ── inputs (called from the ws read loop; cheap, schedule the heavy work) ──
+    def _append_transcript(self, text: str) -> None:
+        """Append to the rolling transcript, trimming to _MAX_TRANSCRIPT_CHARS. Briefs only ever
+        read the tail, so the head is discardable — and holding it for a whole meeting is what
+        made a long recording's session grow without bound."""
+        self._transcript += (" " + text)
+        if len(self._transcript) > _MAX_TRANSCRIPT_CHARS:
+            self._transcript = self._transcript[-_MAX_TRANSCRIPT_CHARS:]
+
     def feed_transcript(self, text: str, loop: asyncio.AbstractEventLoop) -> None:
         if not text or not self.engaged():
             return
-        self._transcript += (" " + text)
+        self._append_transcript(text)
         self._since_pass += len(text)
         # Fire the first pass early (short threshold) so the copilot engages quickly; later
         # passes wait for more new speech so it isn't chatty.
@@ -229,7 +245,7 @@ class _Session:
         growth threshold and the cooldown)."""
         if not hint or not self.engaged():
             return
-        self._transcript += (" " + hint)
+        self._append_transcript(hint)
         self._schedule(loop, force=True)
 
     def refresh(self, loop: asyncio.AbstractEventLoop) -> None:
@@ -285,6 +301,12 @@ class _Session:
             for c in fresh:
                 self._seen.add(c["text"].lower())
                 self._surfaced.append(c["text"])
+            # Trim both to the newest _MAX_SURFACED. Briefs only carry _MAX_ALREADY, and a card
+            # from far enough back is not one the agent is about to restate — so an unbounded
+            # dedup history buys nothing. _seen is rebuilt from the survivors to stay in step.
+            if len(self._surfaced) > _MAX_SURFACED:
+                self._surfaced = self._surfaced[-_MAX_SURFACED:]
+                self._seen = {t.lower() for t in self._surfaced}
             self._send(self.conn, {"type": "live.context", "streamId": self.stream_id,
                                    "recordingId": self.rec_id, "cards": fresh})
 

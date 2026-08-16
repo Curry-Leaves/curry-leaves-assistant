@@ -344,6 +344,13 @@ class _AudioStream:
     chunk transcribes, a ``transcript`` frame goes back to this connection. Transcription
     is offloaded to a thread and serialized (one chunk at a time) so frames stay ordered."""
 
+    # Cap on chunk tasks queued behind the lock. Each inbound binary frame used to spawn one
+    # unconditionally, so if transcription ran slower than the mic produced audio the set grew
+    # for the whole meeting. One running + a couple waiting is all that can ever be useful:
+    # the transcriber holds its own PCM buffer, so a frame whose task we skip is still fed by
+    # whichever task drains next. This bounds tasks, not audio.
+    _MAX_PENDING = 3
+
     def __init__(self, conn: Connection, stream_id: str, live=None) -> None:
         self.conn = conn
         self.stream_id = stream_id
@@ -353,7 +360,11 @@ class _AudioStream:
         self.live = live  # optional live_context._Session (meeting streams only)
 
     def feed(self, pcm: bytes) -> None:
-        self._spawn(lambda: self._tr.feed(pcm))
+        # Always buffer the PCM (cheap, and the transcriber caps its own buffer); only spawn a
+        # drain task if one isn't already backed up waiting for the model.
+        self._tr.accept(pcm)
+        if len(self._tasks) < self._MAX_PENDING:
+            self._spawn(self._tr.feed_pending)
 
     async def end(self) -> None:
         # Wait for in-flight chunk work, then flush the tail as the final append.
