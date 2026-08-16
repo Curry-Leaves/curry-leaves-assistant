@@ -30,6 +30,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Recording names and tags are normalized on save.** Names are trimmed (a blank one reverts to
   `Untitled recording`) and tags case-insensitively deduped in order — the first tag decides which
   group a recording files under.
+- **Bundled web UI is now 1.4.0** — adds the recording tag/organizer UI, the notes move into the
+  centre column, `@` mentions, and the text/timeline transcript toggle.
 
 ## [1.4.0] - 2026-08-09
 

@@ -15,7 +15,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 WEBUI_DIR="$ROOT/src/curry_leaves_assistant/webui"
 WEB_PKG="curry-leaves-assistant-web"
-WEB_VERSION="${CURRY_LEAVES_WEB_VERSION:-1.3.0}"
+WEB_VERSION="${CURRY_LEAVES_WEB_VERSION:-1.4.0}"
 
 rm -rf "$WEBUI_DIR"
 
